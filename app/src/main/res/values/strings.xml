@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">ShopEase</string>
+    <string name="default_web_client_id">178622817433-bjpnluuvc25pd0idhhh2dn06096gc0pj.apps.googleusercontent.com</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="lorem_ipsum">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit
+        in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
+        mollit anim id est laborum.</string>
+    <string name="price_format">$%.2f</string>
+    <string name="original_price_format">$%.2f</string>
+    <string name="discount_format">%d%% OFF</string>
+    <string name="added_to_cart">Added to Cart</string>
+    <string name="max_stock_available">Max stock available: %d</string>
+    <string name="rating_count_format">(%d)</string>
+    <string name="cart_is_empty">Your cart is empty! Add some product in your cart to proceed.</string>
+    <string name="please_login_to_view_cart">Please log in to view cart</string>
+</resources>

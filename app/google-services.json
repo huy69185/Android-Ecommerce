@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "454305034613",
+    "project_id": "shopease-new-12345",
+    "storage_bucket": "shopease-new-12345.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:454305034613:android:e05a7d809b55dcd495633c",
+        "android_client_info": {
+          "package_name": "com.example.newEcom"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "454305034613-9mvc9ilsqkahsfa25o663qlgusnlhgs1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.newEcom",
+            "certificate_hash": "a2d7c456db14f4f7177245b4db7615d09b6dab1e"
+          }
+        },
+        {
+          "client_id": "454305034613-jthg7ib0tf6gpvv522e1k1glnts5prq8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrCDIOVM1E1thdXJs1lAwRHL2lTjP4tNY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "454305034613-jthg7ib0tf6gpvv522e1k1glnts5prq8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
