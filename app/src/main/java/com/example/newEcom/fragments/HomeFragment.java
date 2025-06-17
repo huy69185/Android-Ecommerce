@@ -16,10 +16,10 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.newEcom.R;
-import com.example.newEcom.activities.AdminActivity;
 import com.example.newEcom.activities.MainActivity;
 import com.example.newEcom.adapters.CategoryAdapter;
 import com.example.newEcom.adapters.ProductAdapter;
+import com.example.newEcom.fragments.CategoryFragment;
 import com.example.newEcom.model.CategoryModel;
 import com.example.newEcom.model.ProductModel;
 import com.example.newEcom.utils.FirebaseUtil;
@@ -29,13 +29,12 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-import com.google.firebase.firestore.QuerySnapshot;
 import com.mancj.materialsearchbar.MaterialSearchBar;
 
 import org.imaginativeworld.whynotimagecarousel.ImageCarousel;
 import org.imaginativeworld.whynotimagecarousel.model.CarouselItem;
 
-public class HomeFragment extends Fragment {
+public class HomeFragment extends Fragment implements CategoryAdapter.OnCategoryClickListener {
     private static final String TAG = "HomeFragment";
     private RecyclerView categoryRecyclerView, productRecyclerView;
     private MaterialSearchBar searchBar;
@@ -51,8 +50,7 @@ public class HomeFragment extends Fragment {
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         initializeViews(view);
         setupSearchBar();
@@ -66,7 +64,6 @@ public class HomeFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        // Đảm bảo các thành phần UI đã sẵn sàng
     }
 
     private void initializeViews(View view) {
@@ -118,8 +115,8 @@ public class HomeFragment extends Fragment {
     }
 
     private void initCategories() {
-        if (categoryRecyclerView == null) {
-            Log.e(TAG, "categoryRecyclerView is null");
+        if (categoryRecyclerView == null || getContext() == null) {
+            Log.e(TAG, "categoryRecyclerView or context is null");
             return;
         }
         Query query = FirebaseUtil.getCategories();
@@ -127,23 +124,14 @@ public class HomeFragment extends Fragment {
                 .setQuery(query, CategoryModel.class)
                 .build();
 
-        categoryAdapter = new CategoryAdapter(options, getContext());
+        categoryAdapter = new CategoryAdapter(options, getContext(), this);
         categoryRecyclerView.setLayoutManager(new GridLayoutManager(getContext(), 4));
         categoryRecyclerView.setAdapter(categoryAdapter);
-        categoryAdapter.startListening();
-        categoryAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
-            @Override
-            public void onItemRangeInserted(int positionStart, int itemCount) {
-                if (categoryAdapter.getItemCount() == 0) {
-                    Toast.makeText(getContext(), "No categories available", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
     }
 
     private void initProducts() {
-        if (productRecyclerView == null) {
-            Log.e(TAG, "productRecyclerView is null");
+        if (productRecyclerView == null || getContext() == null) {
+            Log.e(TAG, "productRecyclerView or context is null");
             return;
         }
         Query query = FirebaseUtil.getProducts();
@@ -154,15 +142,6 @@ public class HomeFragment extends Fragment {
         productAdapter = new ProductAdapter(options, getContext());
         productRecyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
         productRecyclerView.setAdapter(productAdapter);
-        productAdapter.startListening();
-        productAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
-            @Override
-            public void onItemRangeInserted(int positionStart, int itemCount) {
-                if (productAdapter.getItemCount() == 0) {
-                    Toast.makeText(getContext(), "No products available", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
     }
 
     private void stopShimmerAndShowContent() {
@@ -178,14 +157,50 @@ public class HomeFragment extends Fragment {
     @Override
     public void onStart() {
         super.onStart();
-        if (categoryAdapter != null) categoryAdapter.startListening();
-        if (productAdapter != null) productAdapter.startListening();
+        if (categoryAdapter != null) {
+            categoryAdapter.startListening();
+        }
+        if (productAdapter != null) {
+            productAdapter.startListening();
+        }
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        if (categoryAdapter != null) categoryAdapter.stopListening();
-        if (productAdapter != null) productAdapter.stopListening();
+        if (categoryAdapter != null) {
+            categoryAdapter.stopListening();
+        }
+        if (productAdapter != null) {
+            productAdapter.stopListening();
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (categoryAdapter != null) {
+            categoryAdapter.stopListening();
+        }
+        if (productAdapter != null) {
+            productAdapter.stopListening();
+        }
+        if (shimmerFrameLayout != null) {
+            shimmerFrameLayout.stopShimmer();
+        }
+    }
+
+    @Override
+    public void onCategoryClick(String categoryName) {
+        if (getActivity() != null) {
+            CategoryFragment fragment = new CategoryFragment();
+            Bundle args = new Bundle();
+            args.putString("categoryName", categoryName);
+            fragment.setArguments(args);
+            getActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.main_frame_layout, fragment)
+                    .addToBackStack(null)
+                    .commit();
+        }
     }
 }
