@@ -7,6 +7,7 @@ import androidx.cardview.widget.CardView;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -22,7 +23,7 @@ import java.util.HashMap;
 public class AdminActivity extends AppCompatActivity {
     private static final String TAG = "AdminActivity";
     private LinearLayout logoutBtn;
-    private CardView addProductBtn, modifyProductBtn, addCategoryBtn, modifyCategoryBtn, addBannerBtn, modifyBannerBtn;
+    private CardView addProductBtn, modifyProductBtn, addCategoryBtn, modifyCategoryBtn, addBannerBtn, modifyBannerBtn, chatlistBtn;
     private TextView countOrders, priceOrders;
 
     @Override
@@ -39,6 +40,7 @@ public class AdminActivity extends AppCompatActivity {
         modifyBannerBtn = findViewById(R.id.modifyBannerBtn);
         countOrders = findViewById(R.id.countOrders);
         priceOrders = findViewById(R.id.priceOrders);
+        chatlistBtn = findViewById(R.id.chatListBtn);
 
         getDetails();
 
@@ -55,6 +57,9 @@ public class AdminActivity extends AppCompatActivity {
         modifyCategoryBtn.setOnClickListener(v -> startActivity(new Intent(this, ModifyCategoryActivity.class)));
         addBannerBtn.setOnClickListener(v -> startActivity(new Intent(this, AddBannerActivity.class)));
         modifyBannerBtn.setOnClickListener(v -> startActivity(new Intent(this, ModifyBannerActivity.class)));
+        chatlistBtn.setOnClickListener(v -> {
+            startActivity(new Intent(AdminActivity.this, ChatListActivity.class));
+        });
     }
 
     private void getDetails() {
