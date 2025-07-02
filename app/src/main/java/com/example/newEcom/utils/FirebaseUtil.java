@@ -72,6 +72,15 @@ public class FirebaseUtil {
         return FirebaseAuth.getInstance().getUid();
     }
 
+    public static CollectionReference getChatMessages(String userId) {
+        if (userId == null) return null;
+        return FirebaseFirestore.getInstance()
+                .collection("chats")
+                .document(userId)
+                .collection("messages");
+    }
+
+
     // Người dùng chỉ chat với admin
     public static CollectionReference getUserChatMessages() {
         String userId = getCurrentUserId();
