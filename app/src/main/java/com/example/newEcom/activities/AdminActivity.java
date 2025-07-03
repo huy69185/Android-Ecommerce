@@ -1,6 +1,5 @@
 package com.example.newEcom.activities;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
@@ -12,8 +11,6 @@ import android.widget.TextView;
 
 import com.example.newEcom.R;
 import com.example.newEcom.utils.FirebaseUtil;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 
@@ -22,7 +19,7 @@ import java.util.HashMap;
 public class AdminActivity extends AppCompatActivity {
     private static final String TAG = "AdminActivity";
     private LinearLayout logoutBtn;
-    private CardView addProductBtn, modifyProductBtn, addCategoryBtn, modifyCategoryBtn, addBannerBtn, modifyBannerBtn;
+    private CardView addProductBtn, modifyProductBtn, addCategoryBtn, modifyCategoryBtn, addBannerBtn, modifyBannerBtn, chatListBtn;
     private TextView countOrders, priceOrders;
 
     @Override
@@ -37,6 +34,7 @@ public class AdminActivity extends AppCompatActivity {
         modifyCategoryBtn = findViewById(R.id.modifyCategoryBtn);
         addBannerBtn = findViewById(R.id.addBannerBtn);
         modifyBannerBtn = findViewById(R.id.modifyBannerBtn);
+        chatListBtn = findViewById(R.id.chatListBtn);
         countOrders = findViewById(R.id.countOrders);
         priceOrders = findViewById(R.id.priceOrders);
 
@@ -55,6 +53,7 @@ public class AdminActivity extends AppCompatActivity {
         modifyCategoryBtn.setOnClickListener(v -> startActivity(new Intent(this, ModifyCategoryActivity.class)));
         addBannerBtn.setOnClickListener(v -> startActivity(new Intent(this, AddBannerActivity.class)));
         modifyBannerBtn.setOnClickListener(v -> startActivity(new Intent(this, ModifyBannerActivity.class)));
+        chatListBtn.setOnClickListener(v -> startActivity(new Intent(this, ChatListActivity.class)));
     }
 
     private void getDetails() {

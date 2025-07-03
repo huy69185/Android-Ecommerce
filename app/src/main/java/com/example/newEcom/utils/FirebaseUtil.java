@@ -1,7 +1,5 @@
 package com.example.newEcom.utils;
 
-import com.example.newEcom.model.CartItemModel;
-import com.example.newEcom.model.ProductModel;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
@@ -10,7 +8,7 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 public class FirebaseUtil {
-    public static final String ADMIN_USER_ID = "3QRm0nJTKnU9OpVul6N7kEV0OFF3"; // UserId cố định cho admin
+    public static final String ADMIN_USER_ID = "3QRm0nJTKnU9OpVul6N7kEV0OFF3";
 
     public static CollectionReference getCategories() {
         return FirebaseFirestore.getInstance().collection("categories");
@@ -72,20 +70,15 @@ public class FirebaseUtil {
         return FirebaseAuth.getInstance().getUid();
     }
 
-    // Người dùng chỉ chat với admin
-    public static CollectionReference getUserChatMessages() {
-        String userId = getCurrentUserId();
-        if (userId != null && !userId.equals(ADMIN_USER_ID)) {
-            return FirebaseFirestore.getInstance().collection("user_chats").document(ADMIN_USER_ID).collection("messages");
-        }
-        return null;
+    public static DocumentReference getUserProfile(String userId) {
+        return FirebaseFirestore.getInstance().collection("users").document(userId);
     }
 
-    // Admin chat với nhiều người dùng
-    public static CollectionReference getAdminChatMessages(String userId) {
-        if (userId != null) {
-            return FirebaseFirestore.getInstance().collection("admin_chats").document(userId).collection("messages");
-        }
-        return null;
+    public static CollectionReference getChatRooms() {
+        return FirebaseFirestore.getInstance().collection("chat_rooms");
+    }
+
+    public static CollectionReference getChatMessages(String roomId) {
+        return FirebaseFirestore.getInstance().collection("chat_rooms").document(roomId).collection("messages");
     }
 }

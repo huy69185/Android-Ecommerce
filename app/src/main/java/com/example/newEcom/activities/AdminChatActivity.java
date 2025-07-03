@@ -1,7 +1,6 @@
 package com.example.newEcom.activities;
 
 import android.os.Bundle;
-import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -21,23 +20,33 @@ import com.google.firebase.Timestamp;
 public class AdminChatActivity extends AppCompatActivity {
     private RecyclerView chatRecyclerView;
     private ChatAdapter chatAdapter;
-    private String userId; // userId của khách hàng đang chat
+    private String userId;
+    private String userName;
     private EditText messageEditText;
     private ImageButton sendButton;
     private ImageButton backButton;
+    private TextView userNameTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_chat);
 
-        userId = getIntent().getStringExtra("userId");
-        if (userId == null) {
-            finish(); // Kết thúc nếu không có userId
+        if (!FirebaseUtil.getCurrentUserId().equals(FirebaseUtil.ADMIN_USER_ID)) {
+            Toast.makeText(this, "Only admin can access this chat", Toast.LENGTH_SHORT).show();
+            finish();
             return;
         }
-        TextView userNameTextView = findViewById(R.id.userNameTextView);
-        userNameTextView.setText("Chatting with Admin"); // Cập nhật tiêu đề cố định
+
+        userId = getIntent().getStringExtra("userId");
+        userName = getIntent().getStringExtra("userName");
+        if (userId == null) {
+            finish();
+            return;
+        }
+
+        userNameTextView = findViewById(R.id.userNameTextView);
+        userNameTextView.setText("Chatting with " + userName);
 
         chatRecyclerView = findViewById(R.id.chatRecyclerView);
         messageEditText = findViewById(R.id.messageEditText);
@@ -45,6 +54,7 @@ public class AdminChatActivity extends AppCompatActivity {
         backButton = findViewById(R.id.backButton);
 
         setupChatRecyclerView();
+
         sendButton.setOnClickListener(v -> {
             String message = messageEditText.getText().toString().trim();
             if (!message.isEmpty()) {
@@ -53,12 +63,12 @@ public class AdminChatActivity extends AppCompatActivity {
             }
         });
 
-        backButton.setOnClickListener(v -> onBackPressed()); // Xử lý nút Back
+        backButton.setOnClickListener(v -> finish());
     }
 
     private void setupChatRecyclerView() {
         FirestoreRecyclerOptions<MessageModel> options = new FirestoreRecyclerOptions.Builder<MessageModel>()
-                .setQuery(FirebaseUtil.getAdminChatMessages(userId).orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING), MessageModel.class)
+                .setQuery(FirebaseUtil.getChatMessages(userId).orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING), MessageModel.class)
                 .build();
 
         chatAdapter = new ChatAdapter(options, this);
@@ -71,8 +81,13 @@ public class AdminChatActivity extends AppCompatActivity {
         String adminId = FirebaseUtil.ADMIN_USER_ID;
         if (adminId != null) {
             MessageModel messageModel = new MessageModel(adminId, message, Timestamp.now(), true);
-            FirebaseUtil.getAdminChatMessages(userId).add(messageModel);
-            Toast.makeText(this, "Message sent", Toast.LENGTH_SHORT).show();
+            FirebaseUtil.getChatMessages(userId).add(messageModel).addOnSuccessListener(documentReference -> {
+                FirebaseUtil.getChatRooms().document(userId).update(
+                        "lastMessage", message,
+                        "lastMessageTimestamp", Timestamp.now()
+                );
+                Toast.makeText(this, "Message sent", Toast.LENGTH_SHORT).show();
+            });
         }
     }
 

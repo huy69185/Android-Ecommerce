@@ -13,7 +13,6 @@ import com.example.newEcom.R;
 import com.example.newEcom.model.MessageModel;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
-import com.google.firebase.Timestamp;
 
 import java.text.SimpleDateFormat;
 
@@ -44,13 +43,8 @@ public class ChatAdapter extends FirestoreRecyclerAdapter<MessageModel, ChatAdap
         String time = new SimpleDateFormat("hh:mm a").format(model.getTimestamp().toDate());
         holder.timeTextView.setText(time);
 
-        // Đặt background dựa trên isAdmin, màu chữ luôn là đen
-        if (model.isAdmin()) {
-            holder.messageTextView.setBackgroundResource(R.drawable.bg_admin_message);
-        } else {
-            holder.messageTextView.setBackgroundResource(R.drawable.bg_user_message);
-        }
-        holder.messageTextView.setTextColor(context.getResources().getColor(android.R.color.black)); // Màu chữ luôn đen
+        holder.messageTextView.setBackgroundResource(model.isAdmin() ? R.drawable.bg_admin_message : R.drawable.bg_user_message);
+        holder.messageTextView.setTextColor(context.getResources().getColor(android.R.color.black));
     }
 
     public static class ChatViewHolder extends RecyclerView.ViewHolder {

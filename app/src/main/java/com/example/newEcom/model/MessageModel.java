@@ -7,6 +7,7 @@ public class MessageModel {
     private String message;
     private Timestamp timestamp;
     private boolean isAdmin;
+
     public MessageModel() {
     }
 

@@ -6,6 +6,14 @@
     android:orientation="vertical"
     android:background="@color/backgroundPrimary">
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:text="Chat with Admin"
+        android:textSize="18sp"
+        android:gravity="center"/>
+
     <com.facebook.shimmer.ShimmerFrameLayout
         android:id="@+id/shimmer_chat"
         android:layout_width="match_parent"
@@ -39,7 +47,6 @@
                 android:layout_height="40dp"
                 android:layout_gravity="end"
                 android:background="@android:color/darker_gray"/>
-
         </LinearLayout>
     </com.facebook.shimmer.ShimmerFrameLayout>
 
@@ -63,7 +70,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:hint="Type a message..."
-            android:padding="8dp"/>
+            android:padding="8dp"
+            android:textColor="@android:color/black"/>
 
         <ImageButton
             android:id="@+id/sendButton"
@@ -71,13 +79,5 @@
             android:layout_height="wrap_content"
             android:src="@android:drawable/ic_menu_send"
             android:padding="8dp"/>
-
-        <ImageButton
-            android:id="@+id/adminChatButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@android:drawable/ic_dialog_email"
-            android:padding="8dp"
-            android:contentDescription="Chat with Admin"/>
     </LinearLayout>
 </LinearLayout>

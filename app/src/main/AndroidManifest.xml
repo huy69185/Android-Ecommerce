@@ -100,11 +100,17 @@
             android:exported="false"
             android:theme="@style/Admin.Theme.ECom" />
 
-        <!-- Thêm khai báo cho AdminChatActivity -->
         <activity
             android:name=".activities.AdminChatActivity"
             android:screenOrientation="portrait"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Admin.Theme.ECom" />
+
+        <activity
+            android:name=".activities.ChatListActivity"
+            android:screenOrientation="portrait"
+            android:exported="false"
+            android:theme="@style/Admin.Theme.ECom" />
 
         <meta-data
             android:name="preloaded_fonts"

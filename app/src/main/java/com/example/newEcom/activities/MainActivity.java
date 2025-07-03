@@ -45,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
     SearchFragment searchFragment;
     WishlistFragment wishlistFragment;
     ProfileFragment profileFragment;
-    ChatFragment chatFragment; // Giữ để tránh lỗi, nhưng không sử dụng
+    ChatFragment chatFragment;
     LinearLayout searchLinearLayout;
     MaterialSearchBar searchBar;
 
@@ -65,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
         wishlistFragment = new WishlistFragment();
         profileFragment = new ProfileFragment();
         searchFragment = new SearchFragment();
-        chatFragment = new ChatFragment(); // Khởi tạo nhưng không dùng
+        chatFragment = new ChatFragment();
 
         bottomNavigationView = findViewById(R.id.bottom_navigation);
         bottomNavigationView.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
@@ -93,16 +93,17 @@ public class MainActivity extends AppCompatActivity {
                         transaction.addToBackStack(null);
                     }
                 } else if (item.getItemId() == R.id.chat) {
-                    // Thay vì mở ChatFragment, mở trực tiếp AdminChatActivity
                     String currentUserId = FirebaseUtil.getCurrentUserId();
                     if (currentUserId != null && !currentUserId.equals(FirebaseUtil.ADMIN_USER_ID)) {
-                        Intent intent = new Intent(MainActivity.this, AdminChatActivity.class);
-                        intent.putExtra("userId", currentUserId);
-                        startActivity(intent);
+                        if (!chatFragment.isAdded()) {
+                            transaction.replace(R.id.main_frame_layout, chatFragment, "chat");
+                            transaction.addToBackStack(null);
+                        }
                     } else {
-                        Toast.makeText(MainActivity.this, "Admin cannot use this chat entry", Toast.LENGTH_SHORT).show();
+                        Intent intent = new Intent(MainActivity.this, ChatListActivity.class);
+                        startActivity(intent);
+                        return true;
                     }
-                    return true; // Không cần commit transaction vì không dùng fragment
                 }
                 transaction.commit();
                 return true;
@@ -111,12 +112,7 @@ public class MainActivity extends AppCompatActivity {
         bottomNavigationView.setSelectedItemId(R.id.home);
         addOrRemoveBadge();
 
-        getSupportFragmentManager().addOnBackStackChangedListener(new FragmentManager.OnBackStackChangedListener() {
-            @Override
-            public void onBackStackChanged() {
-                updateBottomNavigationSelectedItem();
-            }
-        });
+        getSupportFragmentManager().addOnBackStackChangedListener(() -> updateBottomNavigationSelectedItem());
 
         searchBar.setOnSearchActionListener(new SimpleOnSearchActionListener() {
             @Override
@@ -126,8 +122,12 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onSearchConfirmed(CharSequence text) {
-                if (!searchFragment.isAdded())
-                    getSupportFragmentManager().beginTransaction().replace(R.id.main_frame_layout, searchFragment, "search").addToBackStack(null).commit();
+                if (!searchFragment.isAdded()) {
+                    getSupportFragmentManager().beginTransaction()
+                            .replace(R.id.main_frame_layout, searchFragment, "search")
+                            .addToBackStack(null)
+                            .commit();
+                }
                 super.onSearchConfirmed(text);
             }
 
@@ -140,7 +140,10 @@ public class MainActivity extends AppCompatActivity {
         handleDeepLink();
 
         if (getIntent().getBooleanExtra("orderPlaced", false)) {
-            getSupportFragmentManager().beginTransaction().replace(R.id.main_frame_layout, profileFragment, "profile").addToBackStack(null).commit();
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.main_frame_layout, profileFragment, "profile")
+                    .addToBackStack(null)
+                    .commit();
             bottomNavigationView.setSelectedItemId(R.id.profile);
         }
     }
@@ -155,42 +158,42 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (fm.getBackStackEntryCount() > 0)
+        if (fm.getBackStackEntryCount() > 0) {
             fm.popBackStack();
-        else
+        } else {
             super.onBackPressed();
+        }
     }
 
     private void updateBottomNavigationSelectedItem() {
         Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.main_frame_layout);
 
-        if (currentFragment instanceof HomeFragment)
+        if (currentFragment instanceof HomeFragment) {
             bottomNavigationView.setSelectedItemId(R.id.home);
-        else if (currentFragment instanceof CartFragment)
+        } else if (currentFragment instanceof CartFragment) {
             bottomNavigationView.setSelectedItemId(R.id.cart);
-        else if (currentFragment instanceof WishlistFragment)
+        } else if (currentFragment instanceof WishlistFragment) {
             bottomNavigationView.setSelectedItemId(R.id.wishlist);
-        else if (currentFragment instanceof ProfileFragment)
+        } else if (currentFragment instanceof ProfileFragment) {
             bottomNavigationView.setSelectedItemId(R.id.profile);
-        // Không cần kiểm tra ChatFragment vì nó không được sử dụng
+        } else if (currentFragment instanceof ChatFragment) {
+            bottomNavigationView.setSelectedItemId(R.id.chat);
+        }
     }
 
     public void addOrRemoveBadge() {
         FirebaseUtil.getCartItems().get()
-                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                        if (task.isSuccessful()) {
-                            int n = task.getResult().size();
-                            BadgeDrawable badge = bottomNavigationView.getOrCreateBadge(R.id.cart);
-                            badge.setBackgroundColor(Color.parseColor("#FFF44336"));
-                            if (n > 0) {
-                                badge.setVisible(true);
-                                badge.setNumber(n);
-                            } else {
-                                badge.setVisible(false);
-                                badge.clearNumber();
-                            }
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        int n = task.getResult().size();
+                        BadgeDrawable badge = bottomNavigationView.getOrCreateBadge(R.id.cart);
+                        badge.setBackgroundColor(Color.parseColor("#FFF44336"));
+                        if (n > 0) {
+                            badge.setVisible(true);
+                            badge.setNumber(n);
+                        } else {
+                            badge.setVisible(false);
+                            badge.clearNumber();
                         }
                     }
                 });
@@ -198,26 +201,21 @@ public class MainActivity extends AppCompatActivity {
 
     private void handleDeepLink() {
         FirebaseDynamicLinks.getInstance().getDynamicLink(getIntent())
-                .addOnSuccessListener(new OnSuccessListener<PendingDynamicLinkData>() {
-                    @Override
-                    public void onSuccess(PendingDynamicLinkData pendingDynamicLinkData) {
-                        Uri deepLink = null;
-                        if (pendingDynamicLinkData != null)
-                            deepLink = pendingDynamicLinkData.getLink();
-
-                        if (deepLink != null) {
-                            Log.i("DeepLink", deepLink.toString());
-                            String productId = deepLink.getQueryParameter("product_id");
-                            Fragment fragment = ProductFragment.newInstance(Integer.parseInt(productId));
-                            getSupportFragmentManager().beginTransaction().replace(R.id.main_frame_layout, fragment).addToBackStack(null).commit();
-                        }
+                .addOnSuccessListener(pendingDynamicLinkData -> {
+                    Uri deepLink = null;
+                    if (pendingDynamicLinkData != null) {
+                        deepLink = pendingDynamicLinkData.getLink();
+                    }
+                    if (deepLink != null) {
+                        Log.i("DeepLink", deepLink.toString());
+                        String productId = deepLink.getQueryParameter("product_id");
+                        Fragment fragment = ProductFragment.newInstance(Integer.parseInt(productId));
+                        getSupportFragmentManager().beginTransaction()
+                                .replace(R.id.main_frame_layout, fragment)
+                                .addToBackStack(null)
+                                .commit();
                     }
                 })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.i("Error123", e.toString());
-                    }
-                });
+                .addOnFailureListener(e -> Log.i("Error123", e.toString()));
     }
 }
