@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "454305034613-r6jadujol350jko75rc4kat3meflmirv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.newEcom",
+            "certificate_hash": "652152296573df983c48e98fe96209698e205bcb"
+          }
+        },
+        {
           "client_id": "454305034613-jthg7ib0tf6gpvv522e1k1glnts5prq8.apps.googleusercontent.com",
           "client_type": 3
         }
