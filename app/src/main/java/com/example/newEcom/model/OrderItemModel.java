@@ -9,118 +9,58 @@ public class OrderItemModel {
     private int quantity;
     private Timestamp timestamp;
     private String fullName, email, phoneNumber, address, comments;
+    private String status; // Thêm cột trạng thái
 
     public OrderItemModel() {
     }
 
+    // Constructor hiện tại
+    public OrderItemModel(int orderId, int productId, String name, String image, double price, int quantity, Timestamp timestamp, String fullName, String email, String phoneNumber, String address, String comments, String status) {
+        this.orderId = orderId;
+        this.productId = productId;
+        this.name = name;
+        this.image = image;
+        this.price = price;
+        this.quantity = quantity;
+        this.timestamp = timestamp;
+        this.fullName = fullName;
+        this.email = email;
+        this.phoneNumber = phoneNumber;
+        this.address = address;
+        this.comments = comments;
+        this.status = status;
+    }
+
+    // Constructor mới cho CheckoutActivity (không có status ban đầu)
     public OrderItemModel(int orderId, int productId, String name, String image, double price, int quantity, Timestamp timestamp, String fullName, String email, String phoneNumber, String address, String comments) {
-        this.orderId = orderId;
-        this.productId = productId;
-        this.name = name;
-        this.image = image;
-        this.price = price;
-        this.quantity = quantity;
-        this.timestamp = timestamp;
-        this.fullName = fullName;
-        this.email = email;
-        this.phoneNumber = phoneNumber;
-        this.address = address;
-        this.comments = comments;
+        this(orderId, productId, name, image, price, quantity, timestamp, fullName, email, phoneNumber, address, comments, "Order"); // Mặc định trạng thái là "Order"
     }
 
-    public int getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(int orderId) {
-        this.orderId = orderId;
-    }
-
-    public int getProductId() {
-        return productId;
-    }
-
-    public void setProductId(int productId) {
-        this.productId = productId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getImage() {
-        return image;
-    }
-
-    public void setImage(String image) {
-        this.image = image;
-    }
-
-    public double getPrice() {
-        return price;
-    }
-
-    public void setPrice(double price) {
-        this.price = price;
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(int quantity) {
-        this.quantity = quantity;
-    }
-
-    public Timestamp getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(Timestamp timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    public String getFullName() {
-        return fullName;
-    }
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public String getComments() {
-        return comments;
-    }
-
-    public void setComments(String comments) {
-        this.comments = comments;
-    }
+    // Getter và Setter (giữ nguyên như trước)
+    public int getOrderId() { return orderId; }
+    public void setOrderId(int orderId) { this.orderId = orderId; }
+    public int getProductId() { return productId; }
+    public void setProductId(int productId) { this.productId = productId; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getImage() { return image; }
+    public void setImage(String image) { this.image = image; }
+    public double getPrice() { return price; }
+    public void setPrice(double price) { this.price = price; }
+    public int getQuantity() { return quantity; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public Timestamp getTimestamp() { return timestamp; }
+    public void setTimestamp(Timestamp timestamp) { this.timestamp = timestamp; }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getPhoneNumber() { return phoneNumber; }
+    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    public String getComments() { return comments; }
+    public void setComments(String comments) { this.comments = comments; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 }

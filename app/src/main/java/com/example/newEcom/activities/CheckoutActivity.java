@@ -205,11 +205,11 @@ public class CheckoutActivity extends AppCompatActivity {
         if (!validate())
             return;
 
-        name = nameEditText.getText().toString();
-        email = emailEditText.getText().toString();
-        phone = phoneEditText.getText().toString();
-        address = addressEditText.getText().toString();
-        comment = commentEditText.getText().toString();
+        name = nameEditText.getText().toString().trim();
+        email = emailEditText.getText().toString().trim();
+        phone = phoneEditText.getText().toString().trim();
+        address = addressEditText.getText().toString().trim();
+        comment = commentEditText.getText().toString().trim();
 
         productDocId[0] = new ArrayList<>();
         oldStock[0] = new ArrayList<>();
@@ -225,9 +225,14 @@ public class CheckoutActivity extends AppCompatActivity {
                 .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
                     @Override
                     public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                        prevOrderId[0] = task.getResult().getLong("lastOrderId").intValue();
-                        countOfOrderedItems[0] = task.getResult().getLong("countOfOrderedItems").intValue();
-                        priceOfOrders[0] = task.getResult().getDouble("priceOfOrders");
+                        if (task.isSuccessful() && task.getResult() != null) {
+                            prevOrderId[0] = task.getResult().getLong("lastOrderId").intValue();
+                            countOfOrderedItems[0] = task.getResult().getLong("countOfOrderedItems").intValue();
+                            priceOfOrders[0] = task.getResult().getDouble("priceOfOrders");
+                        } else {
+                            Toast.makeText(CheckoutActivity.this, "Failed to fetch order details", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
                     }
                 });
 
@@ -243,15 +248,35 @@ public class CheckoutActivity extends AppCompatActivity {
                                 productPrice[0].add(document.getDouble("price"));
                                 productQuantity[0].add(document.getLong("quantity").intValue());
 
-                                OrderItemModel item = new OrderItemModel(prevOrderId[0] + 1, document.getLong("productId").intValue(),
-                                        document.getString("name"), document.getString("image"),
-                                        document.getDouble("price"), document.getLong("quantity").intValue(),
-                                        Timestamp.now(), name, email, phone, address, comment);
+                                // Sử dụng constructor mới
+                                OrderItemModel item = new OrderItemModel(
+                                        prevOrderId[0] + 1,
+                                        document.getLong("productId").intValue(),
+                                        document.getString("name"),
+                                        document.getString("image"),
+                                        document.getDouble("price"),
+                                        document.getLong("quantity").intValue(),
+                                        Timestamp.now(),
+                                        name,
+                                        email,
+                                        phone,
+                                        address,
+                                        comment
+                                );
 
+                                // Lưu đơn hàng vào Firestore
                                 FirebaseFirestore.getInstance().collection("orders")
-                                        .document(FirebaseAuth.getInstance().getUid()).collection("items").add(item);
-                                int quantity = document.getLong("quantity").intValue();
+                                        .document(FirebaseAuth.getInstance().getUid())
+                                        .collection("items")
+                                        .add(item)
+                                        .addOnSuccessListener(documentReference -> {
+                                            Log.d("CheckoutActivity", "Order saved with ID: " + documentReference.getId());
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            Log.e("CheckoutActivity", "Error saving order", e);
+                                        });
 
+                                int quantity = document.getLong("quantity").intValue();
                                 callback.onCallback(document, quantity);
                             }
 

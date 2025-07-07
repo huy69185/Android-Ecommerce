@@ -38,7 +38,12 @@ public class FirebaseUtil {
         return null;
     }
 
-    public static CollectionReference getOrderItems() {
+    public static CollectionReference getAllOrderItems() {
+        // Trả về collection "orders" cho admin để truy cập toàn bộ
+        return FirebaseFirestore.getInstance().collection("orders");
+    }
+
+    public static CollectionReference getUserOrderItems() {
         String userId = getCurrentUserId();
         if (userId != null) {
             return FirebaseFirestore.getInstance().collection("orders").document(userId).collection("items");

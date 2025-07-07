@@ -2,24 +2,18 @@ package com.example.newEcom.fragments;
 
 import android.content.Intent;
 import android.os.Bundle;
-
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-
 import com.example.newEcom.R;
 import com.example.newEcom.activities.MainActivity;
 import com.example.newEcom.activities.SplashActivity;
-import com.example.newEcom.adapters.CartAdapter;
 import com.example.newEcom.adapters.OrderListAdapter;
-import com.example.newEcom.model.CartItemModel;
 import com.example.newEcom.model.OrderItemModel;
 import com.example.newEcom.utils.FirebaseUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
@@ -39,7 +33,7 @@ public class ProfileFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        View view =  inflater.inflate(R.layout.fragment_profile, container, false);
+        View view = inflater.inflate(R.layout.fragment_profile, container, false);
         orderRecyclerView = view.findViewById(R.id.orderRecyclerView);
         logoutBtn = view.findViewById(R.id.logoutBtn);
         userNameTextView = view.findViewById(R.id.userNameTextView);
@@ -54,21 +48,42 @@ public class ProfileFragment extends Fragment {
         getOrderProducts();
 
         MainActivity activity = (MainActivity) getActivity();
-        activity.hideSearchBar();
+        if (activity != null) {
+            activity.hideSearchBar();
+        }
 
         return view;
     }
 
     private void getOrderProducts() {
-        Query query = FirebaseUtil.getOrderItems().orderBy("timestamp", Query.Direction.DESCENDING);
-        FirestoreRecyclerOptions<OrderItemModel> options = new FirestoreRecyclerOptions.Builder<OrderItemModel>()
-                .setQuery(query, OrderItemModel.class)
-                .build();
+        String userId = FirebaseUtil.getCurrentUserId();
+        if (userId != null) {
+            Query query = FirebaseUtil.getUserOrderItems().orderBy("timestamp", Query.Direction.DESCENDING);
+            FirestoreRecyclerOptions<OrderItemModel> options = new FirestoreRecyclerOptions.Builder<OrderItemModel>()
+                    .setQuery(query, OrderItemModel.class)
+                    .build();
 
-        orderAdapter = new OrderListAdapter(options, getActivity());
-        LinearLayoutManager manager = new LinearLayoutManager(getActivity());
-        orderRecyclerView.setLayoutManager(manager);
-        orderRecyclerView.setAdapter(orderAdapter);
-        orderAdapter.startListening();
+            orderAdapter = new OrderListAdapter(options, getActivity());
+            LinearLayoutManager manager = new LinearLayoutManager(getActivity());
+            orderRecyclerView.setLayoutManager(manager);
+            orderRecyclerView.setAdapter(orderAdapter);
+            orderAdapter.startListening();
+        }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (orderAdapter != null) {
+            orderAdapter.startListening();
+        }
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (orderAdapter != null) {
+            orderAdapter.stopListening();
+        }
     }
 }

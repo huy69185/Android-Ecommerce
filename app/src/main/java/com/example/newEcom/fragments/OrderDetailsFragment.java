@@ -197,7 +197,7 @@ public class OrderDetailsFragment extends Fragment {
     }
 
     private void initProduct(int orderId, FirestoreCallback callback) {
-        FirebaseUtil.getOrderItems().whereEqualTo("orderId", orderId)
+        FirebaseUtil.getUserOrderItems().whereEqualTo("orderId", orderId)
                 .get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
                     @Override
                     public void onComplete(@NonNull Task<QuerySnapshot> task) {
