@@ -40,11 +40,10 @@ import cn.pedant.SweetAlert.SweetAlertDialog;
 
 public class OrderDetailsFragment extends Fragment {
     TextView productNameTextView, orderIdTextView, nameTextView, emailTextView, phoneTextView, addressTextView, commentTextView;
-    ImageView productImageView;
+    ImageView productImageView, backBtn;
     RatingBar ratingBar;
     TextInputEditText titleReviewEditText, reviewEditText;
     Button submitBtn;
-    ImageView backBtn;
     LinearLayout productLinearLayout;
 
     OrderItemModel orderItem;
@@ -71,20 +70,18 @@ public class OrderDetailsFragment extends Fragment {
         phoneTextView = view.findViewById(R.id.phoneTextView);
         addressTextView = view.findViewById(R.id.addressTextView);
         commentTextView = view.findViewById(R.id.commentTextView);
+        backBtn = view.findViewById(R.id.backBtn);
         productLinearLayout = view.findViewById(R.id.productLinearLayout);
 
         ratingBar = view.findViewById(R.id.ratingBar);
         titleReviewEditText = view.findViewById(R.id.titleReviewEditText);
         reviewEditText = view.findViewById(R.id.reviewEditText);
-        backBtn = view.findViewById(R.id.backBtn);
         submitBtn = view.findViewById(R.id.submitBtn);
 
         MainActivity activity = (MainActivity) getActivity();
         activity.hideSearchBar();
 
-        backBtn.setOnClickListener(v -> {
-            activity.onBackPressed();
-        });
+        backBtn.setOnClickListener(v -> activity.onBackPressed());
 
         int oid = getArguments().getInt("orderId");
 
@@ -99,14 +96,13 @@ public class OrderDetailsFragment extends Fragment {
             @Override
             public void onCallback(OrderItemModel orderItem) {
                 Picasso.get().load(orderItem.getImage()).into(productImageView);
-
-                orderIdTextView.setText(orderItem.getOrderId()+"");
+                orderIdTextView.setText("Order Id: " + orderItem.getOrderId());
                 productNameTextView.setText(orderItem.getName());
-                nameTextView.setText(orderItem.getFullName());
-                emailTextView.setText(orderItem.getEmail());
-                phoneTextView.setText(orderItem.getPhoneNumber());
-                addressTextView.setText(orderItem.getAddress());
-                commentTextView.setText(orderItem.getComments()+" ");
+                nameTextView.setText("Biller Name: " + orderItem.getFullName());
+                emailTextView.setText("Email Id: " + orderItem.getEmail());
+                phoneTextView.setText("Phone number: " + orderItem.getPhoneNumber());
+                addressTextView.setText("Address: " + orderItem.getAddress());
+                commentTextView.setText("Comments: " + orderItem.getComments());
 
                 initReview();
                 initSubmitBtn(new FirestoreCallback() {
@@ -114,18 +110,16 @@ public class OrderDetailsFragment extends Fragment {
                     public void onCallback(String productDocId, ProductModel productModel) {
                         submitBtn.setOnClickListener(v -> {
                             float rating = ratingBar.getRating();
-                            if (rating == 0){
+                            if (rating == 0) {
                                 Toast.makeText(activity, "Please select the rating", Toast.LENGTH_SHORT).show();
                                 return;
                             }
                             ReviewModel review = new ReviewModel(FirebaseAuth.getInstance().getCurrentUser().getDisplayName(), rating, titleReviewEditText.getText().toString(), reviewEditText.getText().toString(), Timestamp.now());
                             FirebaseUtil.getReviews(orderItem.getProductId()).document(FirebaseAuth.getInstance().getUid()).set(review);
 
-                            if (isNew){
+                            if (isNew) {
                                 int newNoOfRating = productModel.getNoOfRating() + 1;
                                 float newRating = (productModel.getRating() * productModel.getNoOfRating() + rating) / newNoOfRating;
-//                                DecimalFormat df = new DecimalFormat("#.#");
-//                                newRating = Float.parseFloat(df.format(newRating));
                                 FirebaseUtil.getProducts().document(productDocId).update("rating", newRating);
                                 FirebaseUtil.getProducts().document(productDocId).update("noOfRating", newNoOfRating);
                             } else {
@@ -139,14 +133,12 @@ public class OrderDetailsFragment extends Fragment {
 
                     @Override
                     public void onCallback(OrderItemModel orderItem) {
-
                     }
                 });
             }
 
             @Override
             public void onCallback(String productDocId, ProductModel productModel) {
-
             }
         });
 
@@ -163,11 +155,10 @@ public class OrderDetailsFragment extends Fragment {
                 .get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
                     @Override
                     public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                        if (task.isSuccessful()){
-                            for (QueryDocumentSnapshot document : task.getResult()){
+                        if (task.isSuccessful()) {
+                            for (QueryDocumentSnapshot document : task.getResult()) {
                                 productModel = document.toObject(ProductModel.class);
                                 String productDocId = document.getId();
-
                                 callback.onCallback(productDocId, productModel);
                             }
                         }
@@ -176,11 +167,11 @@ public class OrderDetailsFragment extends Fragment {
     }
 
     private void initReview() {
-        FirebaseFirestore.getInstance().collection("reviews").document(orderItem.getProductId()+"").collection("review")
+        FirebaseFirestore.getInstance().collection("reviews").document(orderItem.getProductId() + "").collection("review")
                 .document(FirebaseAuth.getInstance().getUid()).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
                     @Override
                     public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                        if (task.isSuccessful()){
+                        if (task.isSuccessful()) {
                             dialog.dismiss();
                             DocumentSnapshot document = task.getResult();
                             if (document.exists()) {
@@ -204,7 +195,6 @@ public class OrderDetailsFragment extends Fragment {
                         if (task.isSuccessful()) {
                             for (QueryDocumentSnapshot document : task.getResult()) {
                                 orderItem = document.toObject(OrderItemModel.class);
-
                                 callback.onCallback(orderItem);
                             }
                         }

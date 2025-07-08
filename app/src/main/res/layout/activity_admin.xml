@@ -169,12 +169,6 @@
             </androidx.cardview.widget.CardView>
         </LinearLayout>
 
-        <!-- Thêm FrameLayout làm container cho fragment -->
-        <FrameLayout
-            android:id="@+id/fragment_container"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

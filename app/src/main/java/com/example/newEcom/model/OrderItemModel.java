@@ -33,10 +33,10 @@ public class OrderItemModel {
 
     // Constructor mới cho CheckoutActivity (không có status ban đầu)
     public OrderItemModel(int orderId, int productId, String name, String image, double price, int quantity, Timestamp timestamp, String fullName, String email, String phoneNumber, String address, String comments) {
-        this(orderId, productId, name, image, price, quantity, timestamp, fullName, email, phoneNumber, address, comments, "Order"); // Mặc định trạng thái là "Order"
+        this(orderId, productId, name, image, price, quantity, timestamp, fullName, email, phoneNumber, address, comments, "Pending"); // Mặc định trạng thái là "Pending"
     }
 
-    // Getter và Setter (giữ nguyên như trước)
+    // Getter và Setter
     public int getOrderId() { return orderId; }
     public void setOrderId(int orderId) { this.orderId = orderId; }
     public int getProductId() { return productId; }

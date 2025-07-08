@@ -9,20 +9,20 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.newEcom.R;
 import com.example.newEcom.fragments.AdminOrderFragment;
 import com.example.newEcom.utils.FirebaseUtil;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.appcheck.FirebaseAppCheck;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
-import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class AdminActivity extends AppCompatActivity {
@@ -66,10 +66,15 @@ public class AdminActivity extends AppCompatActivity {
         modifyBannerBtn.setOnClickListener(v -> startActivity(new Intent(this, ModifyBannerActivity.class)));
         chatListBtn.setOnClickListener(v -> startActivity(new Intent(this, ChatListActivity.class)));
         ordersCard.setOnClickListener(v -> {
-            FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-            transaction.replace(R.id.fragment_container, new AdminOrderFragment());
-            transaction.addToBackStack(null);
-            transaction.commit();
+            String currentUserId = FirebaseUtil.getCurrentUserId();
+            Log.d(TAG, "User ID: " + currentUserId + ", Admin ID: " + FirebaseUtil.ADMIN_USER_ID);
+            if (currentUserId != null && currentUserId.equals(FirebaseUtil.ADMIN_USER_ID)) {
+                Intent intent = new Intent(this, AdminOrderActivity.class);
+                startActivity(intent);
+                Log.d(TAG, "Navigating to AdminOrderActivity");
+            } else {
+                Toast.makeText(AdminActivity.this, "Only admin can view orders", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
@@ -110,55 +115,50 @@ public class AdminActivity extends AppCompatActivity {
 
     private void loadOrderCount() {
         Log.d(TAG, "Loading order count from Firestore");
-        FirebaseUtil.getAllOrderItems().get() // Truy cập collection "orders"
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        QuerySnapshot snapshot = task.getResult();
-                        if (snapshot != null && !snapshot.isEmpty()) {
-                            List<Task<QuerySnapshot>> tasks = new ArrayList<>();
-                            for (DocumentSnapshot doc : snapshot) {
-                                String docId = doc.getId(); // Lưu ID của document
-                                Task<QuerySnapshot> itemsTask = doc.getReference().collection("items").get();
-                                tasks.add(itemsTask);
-                            }
-                            Tasks.whenAllSuccess(tasks).addOnSuccessListener(results -> {
-                                long totalOrderCount = 0;
-                                for (int i = 0; i < results.size(); i++) {
-                                    QuerySnapshot itemsSnapshot = (QuerySnapshot) results.get(i);
-                                    totalOrderCount += itemsSnapshot.size();
-                                    // Sử dụng docId từ vòng lặp trước
-                                    String docId = snapshot.getDocuments().get(i).getId();
-                                    Log.d(TAG, "Order count from subcollection " + docId + ": " + itemsSnapshot.size());
-                                }
-                                if (totalOrderCount > 0) {
-                                    final long finalCount = totalOrderCount;
-                                    countOrders.setText(String.valueOf(finalCount));
-                                    FirebaseUtil.getDetails().update("countOfOrderedItems", finalCount)
-                                            .addOnSuccessListener(aVoid -> Log.d(TAG, "Dashboard updated with count: " + finalCount))
-                                            .addOnFailureListener(e -> Log.e(TAG, "Error updating dashboard count: ", e));
-                                } else {
-                                    Log.w(TAG, "No items found in subcollections");
-                                    countOrders.setText("0");
-                                    FirebaseUtil.getDetails().update("countOfOrderedItems", 0L)
-                                            .addOnSuccessListener(aVoid -> Log.d(TAG, "Dashboard updated with count: 0"))
-                                            .addOnFailureListener(e -> Log.e(TAG, "Error updating dashboard count: ", e));
-                                }
-                            }).addOnFailureListener(e -> {
-                                Log.e(TAG, "Error aggregating order count: ", e);
-                                countOrders.setText("0");
-                            });
-                        } else {
-                            Log.w(TAG, "No orders found in Firestore");
-                            countOrders.setText("0");
-                            FirebaseUtil.getDetails().update("countOfOrderedItems", 0L)
-                                    .addOnSuccessListener(aVoid -> Log.d(TAG, "Dashboard updated with count: 0"))
-                                    .addOnFailureListener(e -> Log.e(TAG, "Error updating dashboard count: ", e));
-                        }
-                    } else {
-                        Log.e(TAG, "Error fetching order list: ", task.getException());
-                        countOrders.setText("0");
+        FirebaseUtil.getAllOrderItems(new FirebaseUtil.OnOrderItemsLoadedListener() {
+            @Override
+            public void onItemsLoaded(List<CollectionReference> itemCollections) {
+                if (itemCollections == null || itemCollections.isEmpty()) {
+                    Log.w(TAG, "No order items collections found");
+                    countOrders.setText("0");
+                    FirebaseUtil.getDetails().update("countOfOrderedItems", 0L)
+                            .addOnSuccessListener(aVoid -> Log.d(TAG, "Dashboard updated with count: 0"))
+                            .addOnFailureListener(e -> Log.e(TAG, "Error updating dashboard count: ", e));
+                    return;
+                }
+
+                List<Task<QuerySnapshot>> tasks = new ArrayList<>();
+                for (CollectionReference collection : itemCollections) {
+                    tasks.add(collection.get());
+                }
+
+                Tasks.whenAllSuccess(tasks).addOnSuccessListener(results -> {
+                    long totalOrderCount = 0;
+                    for (Object result : results) {
+                        QuerySnapshot itemsSnapshot = (QuerySnapshot) result;
+                        totalOrderCount += itemsSnapshot.size();
+                        Log.d(TAG, "Order count from subcollection: " + itemsSnapshot.size());
                     }
+                    // Sử dụng biến final trong lambda
+                    final long finalCount = totalOrderCount;
+                    if (finalCount > 0) {
+                        countOrders.setText(String.valueOf(finalCount));
+                        FirebaseUtil.getDetails().update("countOfOrderedItems", finalCount)
+                                .addOnSuccessListener(aVoid -> Log.d(TAG, "Dashboard updated with count: " + finalCount))
+                                .addOnFailureListener(e -> Log.e(TAG, "Error updating dashboard count: ", e));
+                    } else {
+                        Log.w(TAG, "No items found in subcollections");
+                        countOrders.setText("0");
+                        FirebaseUtil.getDetails().update("countOfOrderedItems", 0L)
+                                .addOnSuccessListener(aVoid -> Log.d(TAG, "Dashboard updated with count: 0"))
+                                .addOnFailureListener(e -> Log.e(TAG, "Error updating dashboard count: ", e));
+                    }
+                }).addOnFailureListener(e -> {
+                    Log.e(TAG, "Error aggregating order count: ", e);
+                    countOrders.setText("0");
                 });
+            }
+        });
     }
 
     @Override
