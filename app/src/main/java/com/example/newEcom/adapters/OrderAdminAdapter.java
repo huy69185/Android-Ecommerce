@@ -1,25 +1,26 @@
 package com.example.newEcom.adapters;
 
 import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.newEcom.R;
+import com.example.newEcom.activities.OrderDetailsActivity;
 import com.example.newEcom.model.OrderItemModel;
-import com.example.newEcom.utils.FirebaseUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
-import com.google.firebase.firestore.DocumentSnapshot;
 
 public class OrderAdminAdapter extends FirestoreRecyclerAdapter<OrderItemModel, OrderAdminAdapter.OrderAdminViewHolder> {
+    private static final String TAG = "OrderAdminAdapter";
     private Context context;
 
     public OrderAdminAdapter(@NonNull FirestoreRecyclerOptions<OrderItemModel> options, Context context) {
@@ -31,55 +32,37 @@ public class OrderAdminAdapter extends FirestoreRecyclerAdapter<OrderItemModel, 
     @Override
     public OrderAdminViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(context).inflate(R.layout.item_admin_order, parent, false);
-        if (view.getContext() instanceof AppCompatActivity) {
-            // Ép kiểu chỉ khi context là AppCompatActivity
-        }
         return new OrderAdminViewHolder(view);
     }
 
     @Override
     protected void onBindViewHolder(@NonNull OrderAdminViewHolder holder, int position, @NonNull OrderItemModel model) {
-        holder.orderIdTextView.setText("Order ID: " + model.getOrderId());
+        holder.productName.setText(model.getName());
+        holder.productPrice.setText(String.format("%,.0f USD", model.getPrice()));
         holder.statusTextView.setText("Status: " + model.getStatus());
 
-        // Hiển thị button dựa trên trạng thái
-        if ("Pending".equals(model.getStatus())) {
-            holder.deliveryBtn.setVisibility(View.VISIBLE);
-            holder.finishBtn.setVisibility(View.GONE);
-        } else if ("Delivery".equals(model.getStatus())) {
-            holder.deliveryBtn.setVisibility(View.GONE);
-            holder.finishBtn.setVisibility(View.VISIBLE);
-        } else {
-            holder.deliveryBtn.setVisibility(View.GONE);
-            holder.finishBtn.setVisibility(View.GONE);
-        }
-
-        holder.deliveryBtn.setOnClickListener(v -> {
-            updateStatus(holder.getAdapterPosition(), "Delivery");
+        // Truyền cả ID cha và ID item
+        String orderParentId = getSnapshots().getSnapshot(position).getReference().getParent().getParent().getId(); // ID của document cha
+        String itemId = getSnapshots().getSnapshot(position).getId(); // ID của item trong subcollection
+        holder.detailArrow.setOnClickListener(v -> {
+            Intent intent = new Intent(context, OrderDetailsActivity.class);
+            intent.putExtra("orderParentId", orderParentId); // Truyền ID cha
+            intent.putExtra("itemId", itemId); // Truyền ID item
+            intent.putExtra("status", model.getStatus());
+            context.startActivity(intent);
+            Log.d(TAG, "Navigating to OrderDetailsActivity for Order Parent ID: " + orderParentId + ", Item ID: " + itemId);
         });
-
-        holder.finishBtn.setOnClickListener(v -> {
-            updateStatus(holder.getAdapterPosition(), "Confirm");
-        });
-    }
-
-    private void updateStatus(int position, String newStatus) {
-        DocumentSnapshot snapshot = getSnapshots().getSnapshot(position);
-        FirebaseUtil.getAllOrderItems().document(snapshot.getId()).update("status", newStatus)
-                .addOnSuccessListener(aVoid -> Toast.makeText(context, "Status updated to " + newStatus, Toast.LENGTH_SHORT).show())
-                .addOnFailureListener(e -> Toast.makeText(context, "Failed to update status", Toast.LENGTH_SHORT).show());
     }
 
     public static class OrderAdminViewHolder extends RecyclerView.ViewHolder {
-        TextView orderIdTextView, statusTextView;
-        Button deliveryBtn, finishBtn;
+        TextView productName, productPrice, statusTextView, detailArrow;
 
         public OrderAdminViewHolder(@NonNull View itemView) {
             super(itemView);
-            orderIdTextView = itemView.findViewById(R.id.orderIdTextView);
+            productName = itemView.findViewById(R.id.productName);
+            productPrice = itemView.findViewById(R.id.productPrice);
             statusTextView = itemView.findViewById(R.id.statusTextView);
-            deliveryBtn = itemView.findViewById(R.id.deliveryBtn);
-            finishBtn = itemView.findViewById(R.id.finishBtn);
+            detailArrow = itemView.findViewById(R.id.detailArrow);
         }
     }
 }

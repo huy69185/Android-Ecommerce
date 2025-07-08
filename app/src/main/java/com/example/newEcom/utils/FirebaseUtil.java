@@ -3,12 +3,17 @@ package com.example.newEcom.utils;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class FirebaseUtil {
     public static final String ADMIN_USER_ID = "3QRm0nJTKnU9OpVul6N7kEV0OFF3";
+    private static FirebaseFirestore firestore;
 
     public static CollectionReference getCategories() {
         return FirebaseFirestore.getInstance().collection("categories");
@@ -38,9 +43,19 @@ public class FirebaseUtil {
         return null;
     }
 
-    public static CollectionReference getAllOrderItems() {
-        // Trả về collection "orders" cho admin để truy cập toàn bộ
-        return FirebaseFirestore.getInstance().collection("orders");
+    public static void getAllOrderItems(OnOrderItemsLoadedListener listener) {
+        FirebaseFirestore.getInstance().collection("orders")
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<CollectionReference> itemCollections = new ArrayList<>();
+                    for (DocumentSnapshot doc : querySnapshot) {
+                        itemCollections.add(doc.getReference().collection("items"));
+                    }
+                    listener.onItemsLoaded(itemCollections);
+                })
+                .addOnFailureListener(e -> {
+                    // Xử lý lỗi nếu cần
+                });
     }
 
     public static CollectionReference getUserOrderItems() {
@@ -85,5 +100,15 @@ public class FirebaseUtil {
 
     public static CollectionReference getChatMessages(String roomId) {
         return FirebaseFirestore.getInstance().collection("chat_rooms").document(roomId).collection("messages");
+    }
+
+    public interface OnOrderItemsLoadedListener {
+        void onItemsLoaded(List<CollectionReference> itemCollections);
+    }
+    public static FirebaseFirestore getFirestore() {
+        if (firestore == null) {
+            firestore = FirebaseFirestore.getInstance();
+        }
+        return firestore;
     }
 }
