@@ -13,17 +13,20 @@ import android.widget.Toast;
 
 import com.example.newEcom.R;
 import com.example.newEcom.fragments.AdminOrderFragment;
+import com.example.newEcom.model.OrderItemModel;
 import com.example.newEcom.utils.FirebaseUtil;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AdminActivity extends AppCompatActivity {
     private static final String TAG = "AdminActivity";
@@ -76,6 +79,7 @@ public class AdminActivity extends AppCompatActivity {
                 Toast.makeText(AdminActivity.this, "Only admin can view orders", Toast.LENGTH_SHORT).show();
             }
         });
+        updateDashboardTotalPrice();
     }
 
     private void getDetails() {
@@ -117,8 +121,8 @@ public class AdminActivity extends AppCompatActivity {
         Log.d(TAG, "Loading order count from Firestore");
         FirebaseUtil.getAllOrderItems(new FirebaseUtil.OnOrderItemsLoadedListener() {
             @Override
-            public void onItemsLoaded(List<CollectionReference> itemCollections) {
-                if (itemCollections == null || itemCollections.isEmpty()) {
+            public void onItemsLoaded(List<Map<String, Object>> orderItemsData) {
+                if (orderItemsData == null || orderItemsData.isEmpty()) {
                     Log.w(TAG, "No order items collections found");
                     countOrders.setText("0");
                     FirebaseUtil.getDetails().update("countOfOrderedItems", 0L)
@@ -128,7 +132,8 @@ public class AdminActivity extends AppCompatActivity {
                 }
 
                 List<Task<QuerySnapshot>> tasks = new ArrayList<>();
-                for (CollectionReference collection : itemCollections) {
+                for (Map<String, Object> data : orderItemsData) {
+                    CollectionReference collection = (CollectionReference) data.get("itemsCollection");
                     tasks.add(collection.get());
                 }
 
@@ -139,7 +144,6 @@ public class AdminActivity extends AppCompatActivity {
                         totalOrderCount += itemsSnapshot.size();
                         Log.d(TAG, "Order count from subcollection: " + itemsSnapshot.size());
                     }
-                    // Sử dụng biến final trong lambda
                     final long finalCount = totalOrderCount;
                     if (finalCount > 0) {
                         countOrders.setText(String.valueOf(finalCount));
@@ -161,10 +165,56 @@ public class AdminActivity extends AppCompatActivity {
         });
     }
 
+    private void updateDashboardTotalPrice() {
+        Log.d(TAG, "Updating dashboard total price");
+        FirebaseUtil.getAllOrderItems(new FirebaseUtil.OnOrderItemsLoadedListener() {
+            @Override
+            public void onItemsLoaded(List<Map<String, Object>> orderItemsData) {
+                if (orderItemsData == null || orderItemsData.isEmpty()) {
+                    Log.w(TAG, "No order items collections found");
+                    FirebaseUtil.getDetails().update("priceOfOrders", 0L)
+                            .addOnSuccessListener(aVoid -> {
+                                Log.d(TAG, "Dashboard price updated to 0");
+                                getDetails();
+                            })
+                            .addOnFailureListener(e -> Log.e(TAG, "Error updating dashboard price: ", e));
+                    return;
+                }
+
+                List<Task<QuerySnapshot>> tasks = new ArrayList<>();
+                for (Map<String, Object> data : orderItemsData) {
+                    CollectionReference collection = (CollectionReference) data.get("itemsCollection");
+                    tasks.add(collection.get());
+                }
+
+                Tasks.whenAllSuccess(tasks).addOnSuccessListener(results -> {
+                    double totalPrice = 0;
+                    for (Object result : results) {
+                        QuerySnapshot snapshot = (QuerySnapshot) result;
+                        for (QueryDocumentSnapshot document : snapshot) {
+                            OrderItemModel item = document.toObject(OrderItemModel.class);
+                            if ("confirm".equalsIgnoreCase(item.getStatus())) { // Chỉ tính khi status là "confirm"
+                                totalPrice += item.getPrice();
+                            }
+                        }
+                    }
+                    Log.d(TAG, "Calculated total price for confirmed orders: " + totalPrice);
+                    FirebaseUtil.getDetails().update("priceOfOrders", (long) (totalPrice * 100))
+                            .addOnSuccessListener(aVoid -> {
+                                Log.d(TAG, "Dashboard price updated successfully");
+                                getDetails();
+                            })
+                            .addOnFailureListener(e -> Log.e(TAG, "Error updating dashboard price: ", e));
+                }).addOnFailureListener(e -> Log.e(TAG, "Error fetching items for price calculation: ", e));
+            }
+        });
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
         getDetails();
         loadOrderCount();
+        updateDashboardTotalPrice();
     }
 }

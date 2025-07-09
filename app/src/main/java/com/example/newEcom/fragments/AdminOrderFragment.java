@@ -3,10 +3,12 @@ package com.example.newEcom.fragments;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.PopupMenu;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -18,149 +20,177 @@ import com.example.newEcom.R;
 import com.example.newEcom.adapters.OrderAdminAdapter;
 import com.example.newEcom.model.OrderItemModel;
 import com.example.newEcom.utils.FirebaseUtil;
-import com.firebase.ui.firestore.FirestoreRecyclerOptions;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.firestore.CollectionReference;
-import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class AdminOrderFragment extends Fragment {
-    private static final String TAG = "AdminOrderFragment";
-    private RecyclerView orderRecyclerView;
-    private OrderAdminAdapter orderAdapter;
-    private androidx.appcompat.widget.SearchView searchView;
+
+    private RecyclerView recyclerView;
+    private OrderAdminAdapter adapter;
+    private EditText searchEditText;
+    private Button searchButton;
     private String currentFilter = "All";
-
-    public AdminOrderFragment() {
-        // Required empty public constructor
-    }
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-    }
+    private String currentSearchTerm = "";
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_admin_order, container, false);
-
-        orderRecyclerView = view.findViewById(R.id.orderRecyclerView);
-        searchView = view.findViewById(R.id.searchView);
-
-        androidx.appcompat.widget.AppCompatSpinner filterSpinner = view.findViewById(R.id.filterSpinner);
-        if (filterSpinner != null) {
-            List<String> filterOptions = new ArrayList<>();
-            filterOptions.add("All");
-            filterOptions.add("Pending");
-            filterOptions.add("Delivery");
-            filterOptions.add("Confirm");
-            filterOptions.add("Cancel");
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(getActivity(), android.R.layout.simple_spinner_item, filterOptions);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            filterSpinner.setAdapter(adapter);
-            filterSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    currentFilter = filterOptions.get(position);
-                    setupOrderRecyclerView();
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                    currentFilter = "All";
-                    setupOrderRecyclerView();
-                }
-            });
-        }
-
-        setupOrderRecyclerView();
-
-        if (searchView != null) {
-            searchView.setOnQueryTextListener(new androidx.appcompat.widget.SearchView.OnQueryTextListener() {
-                @Override
-                public boolean onQueryTextSubmit(String query) {
-                    filter(query);
-                    return false;
-                }
-
-                @Override
-                public boolean onQueryTextChange(String newText) {
-                    filter(newText);
-                    return false;
-                }
-            });
-        }
-
+        recyclerView = view.findViewById(R.id.orderRecyclerView);
+        searchEditText = view.findViewById(R.id.searchEditText);
+        searchButton = view.findViewById(R.id.searchButton);
+        setupRecyclerView();
+        setupFilterButton(view);
+        setupSearchButton();
         return view;
     }
 
-    private void setupOrderRecyclerView() {
-        Log.d(TAG, "Setting up RecyclerView with filter: " + currentFilter);
-        FirebaseUtil.getAllOrderItems(itemCollections -> {
-            if (itemCollections.isEmpty()) {
-                Log.w(TAG, "No order items collections found");
-                Toast.makeText(getActivity(), "No orders available", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            // Lấy query từ subcollection
-            Query baseQuery = itemCollections.get(0).orderBy("timestamp", Query.Direction.DESCENDING);
-            if (!"All".equals(currentFilter)) {
-                baseQuery = baseQuery.whereEqualTo("status", currentFilter);
-            }
-            FirestoreRecyclerOptions<OrderItemModel> options = new FirestoreRecyclerOptions.Builder<OrderItemModel>()
-                    .setQuery(baseQuery, OrderItemModel.class)
-                    .build();
-
-            try {
-                if (orderAdapter == null) {
-                    orderAdapter = new OrderAdminAdapter(options, getActivity());
-                    orderRecyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
-                    orderRecyclerView.setAdapter(orderAdapter);
-                    Log.d(TAG, "New adapter created");
-                } else {
-                    orderAdapter.updateOptions(options);
-                    Log.d(TAG, "Adapter options updated");
+    private void setupRecyclerView() {
+        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        FirebaseUtil.getAllOrderItems(new FirebaseUtil.OnOrderItemsLoadedListener() {
+            @Override
+            public void onItemsLoaded(List<Map<String, Object>> orderItemsData) {
+                if (orderItemsData == null || orderItemsData.isEmpty()) {
+                    recyclerView.setVisibility(View.GONE);
+                    Toast.makeText(getContext(), "Không có đơn hàng", Toast.LENGTH_SHORT).show();
+                    return;
                 }
-                if (orderAdapter != null) {
-                    orderAdapter.startListening();
-                    Log.d(TAG, "Adapter started listening with " + (options.getSnapshots() != null ? options.getSnapshots().size() : 0) + " items");
+
+                List<Task<QuerySnapshot>> tasks = new ArrayList<>();
+                for (Map<String, Object> data : orderItemsData) {
+                    CollectionReference itemsCollection = (CollectionReference) data.get("itemsCollection");
+                    tasks.add(itemsCollection.get());
                 }
-            } catch (Exception e) {
-                Log.e(TAG, "Error setting up RecyclerView: ", e);
-                Toast.makeText(getActivity(), "Failed to load orders: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+
+                Tasks.whenAllSuccess(tasks).addOnSuccessListener(results -> {
+                    List<OrderItemModel> allItems = new ArrayList<>();
+                    for (int i = 0; i < results.size(); i++) {
+                        QuerySnapshot snapshot = (QuerySnapshot) results.get(i);
+                        String orderParentId = (String) orderItemsData.get(i).get("orderParentId");
+                        Log.d("AdminOrderFragment", "Processing orderParentId: " + orderParentId);
+                        for (QueryDocumentSnapshot document : snapshot) {
+                            OrderItemModel item = document.toObject(OrderItemModel.class);
+                            item.setOrderParentId(orderParentId);
+                            item.setItemId(document.getId());
+                            Log.d("AdminOrderFragment", "Item added: orderParentId=" + item.getOrderParentId() + ", itemId=" + item.getItemId() + ", orderId=" + item.getOrderId());
+                            allItems.add(item);
+                        }
+                    }
+
+                    // Cập nhật adapter với dữ liệu ban đầu
+                    updateAdapter(allItems);
+
+                    if (allItems.isEmpty()) {
+                        recyclerView.setVisibility(View.GONE);
+                        Toast.makeText(getContext(), "Không có đơn hàng", Toast.LENGTH_SHORT).show();
+                    } else {
+                        recyclerView.setVisibility(View.VISIBLE);
+                    }
+                    Log.d("AdminOrderFragment", "Adapter listening with " + allItems.size() + " items");
+                }).addOnFailureListener(e -> Log.e("AdminOrderFragment", "Error fetching items: ", e));
             }
         });
     }
 
-    private void filter(String text) {
-        Log.d(TAG, "Filtering with text: " + text);
-        FirebaseUtil.getAllOrderItems(itemCollections -> {
-            if (itemCollections.isEmpty()) {
-                Log.w(TAG, "No order items collections found");
-                return;
+    private void updateAdapter(List<OrderItemModel> allItems) {
+        // Lọc thủ công
+        List<OrderItemModel> filteredItems = new ArrayList<>();
+        for (OrderItemModel item : allItems) {
+            boolean match = true;
+            if (!"All".equals(currentFilter) && !currentFilter.equalsIgnoreCase(item.getStatus())) {
+                match = false;
             }
-
-            Query baseQuery = itemCollections.get(0)
-                    .orderBy("timestamp", Query.Direction.DESCENDING)
-                    .whereGreaterThanOrEqualTo("name", text)
-                    .whereLessThanOrEqualTo("name", text + "\uf8ff");
-            if (!"All".equals(currentFilter)) {
-                baseQuery = baseQuery.whereEqualTo("status", currentFilter);
-            }
-            FirestoreRecyclerOptions<OrderItemModel> options = new FirestoreRecyclerOptions.Builder<OrderItemModel>()
-                    .setQuery(baseQuery, OrderItemModel.class)
-                    .build();
-            if (orderAdapter != null) {
-                try {
-                    orderAdapter.updateOptions(options);
-                    orderAdapter.startListening();
-                    Log.d(TAG, "Filter applied, adapter updated with " + (options.getSnapshots() != null ? options.getSnapshots().size() : 0) + " items");
-                } catch (Exception e) {
-                    Log.e(TAG, "Error filtering orders: ", e);
-                    Toast.makeText(getActivity(), "Error filtering orders: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            if (!currentSearchTerm.isEmpty()) {
+                String searchLower = currentSearchTerm.toLowerCase();
+                if (!(item.getName() != null && item.getName().toLowerCase().contains(searchLower)) &&
+                        !(item.getFullName() != null && item.getFullName().toLowerCase().contains(searchLower)) &&
+                        !(item.getPhoneNumber() != null && item.getPhoneNumber().toLowerCase().contains(searchLower))) {
+                    match = false;
                 }
+            }
+            if (match) filteredItems.add(item);
+        }
+
+        // Tạo adapter mới với dữ liệu đã lọc
+        adapter = new OrderAdminAdapter(null, getContext());
+        adapter.setItems(filteredItems); // Cập nhật danh sách cho adapter
+
+        recyclerView.setAdapter(adapter);
+
+        if (filteredItems.isEmpty()) {
+            recyclerView.setVisibility(View.GONE);
+            Toast.makeText(getContext(), "Không có đơn hàng", Toast.LENGTH_SHORT).show();
+        } else {
+            recyclerView.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void setupFilterButton(View view) {
+        view.findViewById(R.id.filterButton).setOnClickListener(v -> {
+            PopupMenu popup = new PopupMenu(getContext(), v);
+            popup.getMenuInflater().inflate(R.menu.filter_menu, popup.getMenu());
+            popup.setOnMenuItemClickListener(this::onFilterMenuItemClick);
+            popup.show();
+        });
+    }
+
+    private boolean onFilterMenuItemClick(MenuItem item) {
+        currentFilter = item.getTitle().toString();
+        updateQuery();
+        return true;
+    }
+
+    private void setupSearchButton() {
+        searchButton.setOnClickListener(v -> {
+            currentSearchTerm = searchEditText.getText().toString().trim().toLowerCase();
+            Log.d("AdminOrderFragment", "Search triggered with term: " + currentSearchTerm);
+            updateQuery();
+        });
+    }
+
+    private void updateQuery() {
+        if (adapter != null) {
+            recyclerView.setAdapter(null); // Xóa adapter cũ
+        }
+
+        FirebaseUtil.getAllOrderItems(new FirebaseUtil.OnOrderItemsLoadedListener() {
+            @Override
+            public void onItemsLoaded(List<Map<String, Object>> orderItemsData) {
+                if (orderItemsData == null || orderItemsData.isEmpty()) {
+                    recyclerView.setVisibility(View.GONE);
+                    Toast.makeText(getContext(), "Không có đơn hàng", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                List<Task<QuerySnapshot>> tasks = new ArrayList<>();
+                for (Map<String, Object> data : orderItemsData) {
+                    CollectionReference itemsCollection = (CollectionReference) data.get("itemsCollection");
+                    tasks.add(itemsCollection.get());
+                }
+
+                Tasks.whenAllSuccess(tasks).addOnSuccessListener(results -> {
+                    List<OrderItemModel> allItems = new ArrayList<>();
+                    for (int i = 0; i < results.size(); i++) {
+                        QuerySnapshot snapshot = (QuerySnapshot) results.get(i);
+                        String orderParentId = (String) orderItemsData.get(i).get("orderParentId");
+                        Log.d("AdminOrderFragment", "Processing orderParentId: " + orderParentId);
+                        for (QueryDocumentSnapshot document : snapshot) {
+                            OrderItemModel item = document.toObject(OrderItemModel.class);
+                            item.setOrderParentId(orderParentId);
+                            item.setItemId(document.getId());
+                            Log.d("AdminOrderFragment", "Item added: orderParentId=" + item.getOrderParentId() + ", itemId=" + item.getItemId() + ", orderId=" + item.getOrderId());
+                            allItems.add(item);
+                        }
+                    }
+
+                    updateAdapter(allItems); // Cập nhật adapter với dữ liệu đã lọc
+                }).addOnFailureListener(e -> Log.e("AdminOrderFragment", "Error fetching items: ", e));
             }
         });
     }
@@ -168,18 +198,12 @@ public class AdminOrderFragment extends Fragment {
     @Override
     public void onStart() {
         super.onStart();
-        if (orderAdapter != null) {
-            orderAdapter.startListening();
-            Log.d(TAG, "Fragment onStart, adapter listening");
-        }
+        // Không cần startListening
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        if (orderAdapter != null) {
-            orderAdapter.stopListening();
-            Log.d(TAG, "Fragment onStop, adapter stopped");
-        }
+        // Không cần stopListening
     }
 }

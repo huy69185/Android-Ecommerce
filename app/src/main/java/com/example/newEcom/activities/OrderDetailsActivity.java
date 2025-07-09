@@ -18,13 +18,15 @@ public class OrderDetailsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_order_details);
 
         // Lấy dữ liệu từ Intent
-        int orderId = getIntent().getIntExtra("orderId", -1);
+        String orderParentId = getIntent().getStringExtra("orderParentId");
+        String itemId = getIntent().getStringExtra("itemId");
         String status = getIntent().getStringExtra("status");
 
         // Thêm OrderAdminDetailsFragment
         OrderAdminDetailsFragment fragment = new OrderAdminDetailsFragment();
         Bundle args = new Bundle();
-        args.putInt("orderId", orderId);
+        args.putString("orderParentId", orderParentId);
+        args.putString("itemId", itemId);
         args.putString("status", status);
         fragment.setArguments(args);
 

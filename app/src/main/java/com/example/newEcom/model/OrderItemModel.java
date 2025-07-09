@@ -9,12 +9,15 @@ public class OrderItemModel {
     private int quantity;
     private Timestamp timestamp;
     private String fullName, email, phoneNumber, address, comments;
-    private String status; // Thêm cột trạng thái
+    private String status;
+    private String userId; // Thêm trường này
+    private Timestamp createdAt; // Thêm trường này
+    private String orderParentId; // Thêm trường này
+    private String itemId; // Thêm trường này
 
     public OrderItemModel() {
     }
 
-    // Constructor hiện tại
     public OrderItemModel(int orderId, int productId, String name, String image, double price, int quantity, Timestamp timestamp, String fullName, String email, String phoneNumber, String address, String comments, String status) {
         this.orderId = orderId;
         this.productId = productId;
@@ -31,12 +34,24 @@ public class OrderItemModel {
         this.status = status;
     }
 
-    // Constructor mới cho CheckoutActivity (không có status ban đầu)
     public OrderItemModel(int orderId, int productId, String name, String image, double price, int quantity, Timestamp timestamp, String fullName, String email, String phoneNumber, String address, String comments) {
-        this(orderId, productId, name, image, price, quantity, timestamp, fullName, email, phoneNumber, address, comments, "Pending"); // Mặc định trạng thái là "Pending"
+        this(orderId, productId, name, image, price, quantity, timestamp, fullName, email, phoneNumber, address, comments, "Pending");
     }
 
-    // Getter và Setter
+    // Getter và Setter cho userId và createdAt
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
+    public Timestamp getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
+
+    // Getter và Setter cho orderParentId và itemId
+    public String getOrderParentId() { return orderParentId; }
+    public void setOrderParentId(String orderParentId) { this.orderParentId = orderParentId; }
+
+    public String getItemId() { return itemId; }
+    public void setItemId(String itemId) { this.itemId = itemId; }
+
+    // Getter và Setter hiện tại (đã có)
     public int getOrderId() { return orderId; }
     public void setOrderId(int orderId) { this.orderId = orderId; }
     public int getProductId() { return productId; }

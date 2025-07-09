@@ -7,6 +7,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -16,16 +17,19 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.newEcom.R;
 import com.example.newEcom.activities.OrderDetailsActivity;
 import com.example.newEcom.model.OrderItemModel;
-import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
-import com.firebase.ui.firestore.FirestoreRecyclerOptions;
+import com.squareup.picasso.Picasso;
 
-public class OrderAdminAdapter extends FirestoreRecyclerAdapter<OrderItemModel, OrderAdminAdapter.OrderAdminViewHolder> {
+import java.util.ArrayList;
+import java.util.List;
+
+public class OrderAdminAdapter extends RecyclerView.Adapter<OrderAdminAdapter.OrderAdminViewHolder> {
     private static final String TAG = "OrderAdminAdapter";
     private Context context;
+    private List<OrderItemModel> items; // Danh sách thủ công
 
-    public OrderAdminAdapter(@NonNull FirestoreRecyclerOptions<OrderItemModel> options, Context context) {
-        super(options);
+    public OrderAdminAdapter(com.firebase.ui.firestore.FirestoreRecyclerOptions<OrderItemModel> options, Context context) {
         this.context = context;
+        this.items = new ArrayList<>(); // Khởi tạo danh sách rỗng
     }
 
     @NonNull
@@ -36,26 +40,51 @@ public class OrderAdminAdapter extends FirestoreRecyclerAdapter<OrderItemModel, 
     }
 
     @Override
-    protected void onBindViewHolder(@NonNull OrderAdminViewHolder holder, int position, @NonNull OrderItemModel model) {
-        holder.productName.setText(model.getName());
-        holder.productPrice.setText(String.format("%,.0f USD", model.getPrice()));
-        holder.statusTextView.setText("Status: " + model.getStatus());
+    public void onBindViewHolder(@NonNull OrderAdminViewHolder holder, int position) {
+        if (position < items.size()) {
+            OrderItemModel model = items.get(position);
+            holder.productName.setText(model.getName() != null ? model.getName() : "N/A");
+            holder.productPrice.setText(String.format("%,.0f USD", model.getPrice()));
+            holder.statusTextView.setText("Status: " + (model.getStatus() != null ? model.getStatus() : "N/A"));
 
-        // Truyền cả ID cha và ID item
-        String orderParentId = getSnapshots().getSnapshot(position).getReference().getParent().getParent().getId(); // ID của document cha
-        String itemId = getSnapshots().getSnapshot(position).getId(); // ID của item trong subcollection
-        holder.detailArrow.setOnClickListener(v -> {
-            Intent intent = new Intent(context, OrderDetailsActivity.class);
-            intent.putExtra("orderParentId", orderParentId); // Truyền ID cha
-            intent.putExtra("itemId", itemId); // Truyền ID item
-            intent.putExtra("status", model.getStatus());
-            context.startActivity(intent);
-            Log.d(TAG, "Navigating to OrderDetailsActivity for Order Parent ID: " + orderParentId + ", Item ID: " + itemId);
-        });
+            if (model.getImage() != null && !model.getImage().isEmpty()) {
+                Picasso.get().load(model.getImage()).into(holder.productImage);
+            } else {
+                holder.productImage.setImageResource(R.drawable.temp);
+            }
+
+            holder.detailArrow.setOnClickListener(v -> {
+                String orderParentId = model.getOrderParentId();
+                String itemId = model.getItemId();
+                if (orderParentId != null && itemId != null && model.getStatus() != null) {
+                    Intent intent = new Intent(context, OrderDetailsActivity.class);
+                    intent.putExtra("orderParentId", orderParentId);
+                    intent.putExtra("itemId", itemId);
+                    intent.putExtra("status", model.getStatus());
+                    context.startActivity(intent);
+                    Log.d(TAG, "Navigating to OrderDetailsActivity for Order Parent ID: " + orderParentId + ", Item ID: " + itemId + ", Status: " + model.getStatus());
+                } else {
+                    Log.e(TAG, "Invalid data: orderParentId=" + orderParentId + ", itemId=" + itemId + ", status=" + model.getStatus());
+                    Toast.makeText(context, "Invalid order data", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+
+    @Override
+    public int getItemCount() {
+        return items.size();
+    }
+
+    // Phương thức để cập nhật danh sách
+    public void setItems(List<OrderItemModel> items) {
+        this.items = items;
+        notifyDataSetChanged();
     }
 
     public static class OrderAdminViewHolder extends RecyclerView.ViewHolder {
-        TextView productName, productPrice, statusTextView, detailArrow;
+        public TextView productName, productPrice, statusTextView, detailArrow;
+        public ImageView productImage;
 
         public OrderAdminViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -63,6 +92,7 @@ public class OrderAdminAdapter extends FirestoreRecyclerAdapter<OrderItemModel, 
             productPrice = itemView.findViewById(R.id.productPrice);
             statusTextView = itemView.findViewById(R.id.statusTextView);
             detailArrow = itemView.findViewById(R.id.detailArrow);
+            productImage = itemView.findViewById(R.id.productImage);
         }
     }
 }

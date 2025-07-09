@@ -48,9 +48,15 @@ public class OrderAdminDetailsFragment extends Fragment {
             orderParentId = args.getString("orderParentId");
             itemId = args.getString("itemId");
             currentStatus = args.getString("status", "Unknown");
-            orderIdTextView.setText(itemId); // Hiển thị itemId làm ID
-            productName.setText("Amazon Bag"); // Có thể lấy từ model nếu cần
-            updateStatusButtons();
+            if (orderParentId != null && itemId != null) {
+                orderIdTextView.setText(itemId); // Hiển thị itemId làm ID
+                productName.setText("Amazon Bag"); // Có thể lấy từ model nếu cần
+                Log.d(TAG, "Loaded with orderParentId: " + orderParentId + ", itemId: " + itemId + ", status: " + currentStatus);
+                updateStatusButtons();
+            } else {
+                Log.e(TAG, "Missing orderParentId or itemId: " + orderParentId + ", " + itemId);
+                Toast.makeText(getActivity(), "Invalid order data", Toast.LENGTH_SHORT).show();
+            }
         } else {
             Log.e(TAG, "No arguments passed to fragment");
             Toast.makeText(getActivity(), "Failed to load order details", Toast.LENGTH_SHORT).show();
@@ -84,6 +90,12 @@ public class OrderAdminDetailsFragment extends Fragment {
     }
 
     private void updateStatus(String orderParentId, String itemId, String currentStatus, String newStatus) {
+        if (orderParentId == null || itemId == null) {
+            Log.e(TAG, "Invalid document path: orderParentId=" + orderParentId + ", itemId=" + itemId);
+            Toast.makeText(getActivity(), "Invalid order data", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         FirebaseFirestore db = FirebaseUtil.getFirestore();
         DocumentReference orderRef = db.collection("orders")
                 .document(orderParentId)
@@ -98,6 +110,7 @@ public class OrderAdminDetailsFragment extends Fragment {
                 return;
             }
 
+            Log.d(TAG, "Current status: " + currentStatus + ", Attempting to set to: " + newStatus);
             // Logic chuyển trạng thái
             if ("Pending".equals(currentStatus) && ("Delivery".equals(newStatus) || "Cancel".equals(newStatus))) {
                 orderRef.update("status", newStatus)
@@ -105,10 +118,11 @@ public class OrderAdminDetailsFragment extends Fragment {
                             this.currentStatus = newStatus;
                             updateStatusButtons();
                             Toast.makeText(getActivity(), "Status updated to " + newStatus, Toast.LENGTH_SHORT).show();
+                            Log.d(TAG, "Status successfully updated to " + newStatus);
                         })
                         .addOnFailureListener(e -> {
                             Log.e(TAG, "Failed to update status: ", e);
-                            Toast.makeText(getActivity(), "Failed to update status", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getActivity(), "Failed to update status: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                         });
             } else if ("Delivery".equals(currentStatus) && "Confirm".equals(newStatus)) {
                 orderRef.update("status", newStatus)
@@ -116,10 +130,11 @@ public class OrderAdminDetailsFragment extends Fragment {
                             this.currentStatus = newStatus;
                             updateStatusButtons();
                             Toast.makeText(getActivity(), "Status updated to " + newStatus, Toast.LENGTH_SHORT).show();
+                            Log.d(TAG, "Status successfully updated to " + newStatus);
                         })
                         .addOnFailureListener(e -> {
                             Log.e(TAG, "Failed to update status: ", e);
-                            Toast.makeText(getActivity(), "Failed to update status", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getActivity(), "Failed to update status: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                         });
             } else if ("Unknown".equals(currentStatus) && "Pending".equals(newStatus)) {
                 orderRef.set(new HashMap<String, Object>() {{
@@ -129,17 +144,19 @@ public class OrderAdminDetailsFragment extends Fragment {
                             this.currentStatus = newStatus;
                             updateStatusButtons();
                             Toast.makeText(getActivity(), "Status set to " + newStatus, Toast.LENGTH_SHORT).show();
+                            Log.d(TAG, "Status successfully set to " + newStatus);
                         })
                         .addOnFailureListener(e -> {
                             Log.e(TAG, "Failed to set initial status: ", e);
-                            Toast.makeText(getActivity(), "Failed to set status", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getActivity(), "Failed to set status: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                         });
             } else {
                 Toast.makeText(getActivity(), "Invalid status transition. Follow: Pending -> Delivery -> Confirm or Pending -> Cancel", Toast.LENGTH_LONG).show();
+                Log.w(TAG, "Invalid transition: current=" + currentStatus + ", new=" + newStatus);
             }
         }).addOnFailureListener(e -> {
             Log.e(TAG, "Error checking document existence: ", e);
-            Toast.makeText(getActivity(), "Error checking order item", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getActivity(), "Error checking order item: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         });
     }
 }
