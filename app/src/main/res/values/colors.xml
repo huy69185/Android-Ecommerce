@@ -14,4 +14,10 @@
     <color name="light_blue">#9FE7F5</color>
     <color name="new1">#abdbe3</color>
 
+    <color name="status_pending">#2196F3</color> <!-- Xanh dương -->
+    <color name="status_delivery">#FFC107</color> <!-- Vàng -->
+    <color name="status_confirm">#4CAF50</color> <!-- Xanh lá -->
+    <color name="status_cancel">#F44336</color> <!-- Đỏ -->
+    <color name="gray">#808080</color>
+
 </resources>
