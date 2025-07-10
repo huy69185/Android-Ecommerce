@@ -82,13 +82,13 @@ public class CheckoutActivity extends AppCompatActivity {
         commentEditText = findViewById(R.id.commentEditText);
 
         subTotal = getIntent().getDoubleExtra("price", 10000.00);
-        subtotalTextView.setText(String.format("₹ %.2f", subTotal));
+        subtotalTextView.setText(String.format("%.2f USD", subTotal));
         if (subTotal >= 5000) {
-            deliveryTextView.setText("₹ 0.00");
-            totalTextView.setText(String.format("₹ %.2f", subTotal));
+            deliveryTextView.setText("0.00 USD");
+            totalTextView.setText(String.format("%.2f USD", subTotal));
         } else {
-            deliveryTextView.setText("₹ 500.00");
-            totalTextView.setText(String.format("₹ %.2f", (subTotal + 500)));
+            deliveryTextView.setText("500.00 USD");
+            totalTextView.setText(String.format("%.2f USD", (subTotal + 500)));
         }
 
         checkoutBtn.setOnClickListener(v -> {

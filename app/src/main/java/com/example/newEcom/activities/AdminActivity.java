@@ -93,7 +93,7 @@ public class AdminActivity extends AppCompatActivity {
                             Long price = document.getLong("priceOfOrders");
                             Log.d(TAG, "Fetched count: " + count + ", price: " + price);
                             countOrders.setText(count != null ? String.valueOf(count) : "0");
-                            priceOrders.setText(price != null ? String.format("₹%.2f", price / 100.0) : "₹0.00");
+                            priceOrders.setText(price != null ? String.format("%.2f USD", price / 100.0) : "0.00 USD");
                         } else {
                             Log.w(TAG, "Document does not exist");
                             countOrders.setText("0");
@@ -103,7 +103,7 @@ public class AdminActivity extends AppCompatActivity {
                     } else {
                         Log.e(TAG, "Error fetching dashboard data: ", task.getException());
                         countOrders.setText("0");
-                        priceOrders.setText("₹0.00");
+                        priceOrders.setText("0.00 USD");
                     }
                 });
     }
