@@ -218,4 +218,10 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .addOnFailureListener(e -> Log.i("Error123", e.toString()));
     }
+    public void replaceFragment(Fragment fragment) {
+        getSupportFragmentManager().beginTransaction()
+                .replace(R.id.main_frame_layout, fragment)
+                .addToBackStack(null)
+                .commit();
+    }
 }

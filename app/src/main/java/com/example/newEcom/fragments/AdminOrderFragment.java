@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.Toast;
 
@@ -36,6 +37,7 @@ public class AdminOrderFragment extends Fragment {
     private OrderAdminAdapter adapter;
     private EditText searchEditText;
     private Button searchButton;
+    private ImageView backButton;
     private String currentFilter = "All";
     private String currentSearchTerm = "";
 
@@ -45,7 +47,9 @@ public class AdminOrderFragment extends Fragment {
         recyclerView = view.findViewById(R.id.orderRecyclerView);
         searchEditText = view.findViewById(R.id.searchEditText);
         searchButton = view.findViewById(R.id.searchButton);
+        backButton = view.findViewById(R.id.backButton);
         setupRecyclerView();
+        setupBackButton();
         setupFilterButton(view);
         setupSearchButton();
         return view;
@@ -193,6 +197,15 @@ public class AdminOrderFragment extends Fragment {
                 }).addOnFailureListener(e -> Log.e("AdminOrderFragment", "Error fetching items: ", e));
             }
         });
+    }
+    private void setupBackButton() {
+        if (backButton != null) {
+            backButton.setOnClickListener(v -> {
+                requireActivity().finish(); // Return to AdminActivity
+            });
+        } else {
+            Log.e("AdminOrderFragment", "backButton is null");
+        }
     }
 
     @Override
