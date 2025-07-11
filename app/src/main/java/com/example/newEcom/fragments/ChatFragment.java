@@ -20,6 +20,7 @@ import com.example.newEcom.utils.FirebaseUtil;
 import com.facebook.shimmer.ShimmerFrameLayout;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 
 public class ChatFragment extends Fragment {
@@ -57,16 +58,13 @@ public class ChatFragment extends Fragment {
             }
         });
 
-        // Initialize chat room
-        FirebaseUtil.getUserProfile(userId).get().addOnCompleteListener(task -> {
-            if (task.isSuccessful() && task.getResult() != null) {
-                DocumentSnapshot document = task.getResult();
-                String userName = document.getString("name") != null ? document.getString("name") : "User";
-                FirebaseUtil.getChatRooms().document(roomId).set(
-                        new com.example.newEcom.model.ChatRoomModel(roomId, userId, userName, "", Timestamp.now())
-                );
-            }
-        });
+        // Lấy tên người dùng từ FirebaseAuth
+        String userName = FirebaseAuth.getInstance().getCurrentUser() != null ?
+                FirebaseAuth.getInstance().getCurrentUser().getDisplayName() : userId;
+        if (userName == null) userName = userId; // Fallback nếu không có displayName
+        FirebaseUtil.getChatRooms().document(roomId).set(
+                new com.example.newEcom.model.ChatRoomModel(roomId, userId, userName, "", Timestamp.now())
+        );
 
         return view;
     }
@@ -89,20 +87,19 @@ public class ChatFragment extends Fragment {
     private void sendMessage(String message) {
         String userId = FirebaseUtil.getCurrentUserId();
         if (userId != null && !userId.equals(FirebaseUtil.ADMIN_USER_ID)) {
+            // Lấy userName một lần và không gán lại
+            String userName = FirebaseAuth.getInstance().getCurrentUser() != null ?
+                    FirebaseAuth.getInstance().getCurrentUser().getDisplayName() : userId;
             MessageModel messageModel = new MessageModel(userId, message, Timestamp.now(), false);
-            FirebaseUtil.getChatMessages(roomId).add(messageModel).addOnSuccessListener(documentReference -> {
-                FirebaseUtil.getUserProfile(userId).get().addOnCompleteListener(task -> {
-                    if (task.isSuccessful() && task.getResult() != null) {
-                        String userName = task.getResult().getString("name") != null ? task.getResult().getString("name") : "User";
+            FirebaseUtil.getChatMessages(roomId).document(userName != null ? userName : userId).set(messageModel)
+                    .addOnSuccessListener(documentReference -> {
                         FirebaseUtil.getChatRooms().document(roomId).update(
                                 "lastMessage", message,
                                 "lastMessageTimestamp", Timestamp.now(),
-                                "userName", userName
+                                "userName", userName != null ? userName : userId
                         );
-                    }
-                });
-                Toast.makeText(getContext(), "Message sent to Admin", Toast.LENGTH_SHORT).show();
-            });
+                        Toast.makeText(getContext(), "Message sent to Admin", Toast.LENGTH_SHORT).show();
+                    });
         }
     }
 

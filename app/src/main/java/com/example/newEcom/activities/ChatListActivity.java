@@ -64,4 +64,10 @@ public class ChatListActivity extends AppCompatActivity {
             chatRoomAdapter.stopListening();
         }
     }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Khởi tạo lại adapter để đồng bộ với dữ liệu mới
+        setupChatRoomRecyclerView();
+    }
 }
