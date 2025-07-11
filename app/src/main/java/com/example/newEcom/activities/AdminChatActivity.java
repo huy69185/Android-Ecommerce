@@ -81,7 +81,7 @@ public class AdminChatActivity extends AppCompatActivity {
         String adminId = FirebaseUtil.ADMIN_USER_ID;
         if (adminId != null) {
             MessageModel messageModel = new MessageModel(adminId, message, Timestamp.now(), true);
-            FirebaseUtil.getChatMessages(userId).add(messageModel).addOnSuccessListener(documentReference -> {
+            FirebaseUtil.getChatMessages(userId).document("Admin").set(messageModel).addOnSuccessListener(documentReference -> {
                 FirebaseUtil.getChatRooms().document(userId).update(
                         "lastMessage", message,
                         "lastMessageTimestamp", Timestamp.now()
@@ -105,5 +105,9 @@ public class AdminChatActivity extends AppCompatActivity {
         if (chatAdapter != null) {
             chatAdapter.stopListening();
         }
+    }
+    @Override
+    protected void onResume() {
+        super.onResume();
     }
 }
