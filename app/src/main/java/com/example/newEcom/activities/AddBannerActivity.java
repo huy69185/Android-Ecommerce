@@ -133,13 +133,17 @@ public class AddBannerActivity extends AppCompatActivity {
 
         BannerModel banner = new BannerModel(bannerId, bannerImage, bannerDesc, status);
 
-        FirebaseUtil.getBanner().add(banner)
-                .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+        FirebaseUtil.getBanner().document("banner" + bannerId)
+                .set(banner)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
-                    public void onSuccess(DocumentReference documentReference) {
+                    public void onSuccess(Void aVoid) {
                         Toast.makeText(AddBannerActivity.this, "Banner has been added successfully!", Toast.LENGTH_SHORT).show();
                         finish();
                     }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(context, "Failed to add banner: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 

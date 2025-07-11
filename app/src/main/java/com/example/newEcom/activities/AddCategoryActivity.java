@@ -125,15 +125,21 @@ public class AddCategoryActivity extends AppCompatActivity {
         String desc = descEditText.getText().toString();
         String color = colorEditText.getText().toString();
 
+        // Tạo ID document từ tên category: viết thường và thay dấu cách bằng _
+        String documentId = name.toLowerCase().replaceAll(" ", "_");
         CategoryModel category = new CategoryModel(name, categoryImage, color, desc, categoryId);
 
-        FirebaseUtil.getCategories().add(category)
-                .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+        FirebaseUtil.getCategories().document(documentId)
+                .set(category)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
-                    public void onSuccess(DocumentReference documentReference) {
+                    public void onSuccess(Void aVoid) {
                         Toast.makeText(AddCategoryActivity.this, "Category has been added successfully!", Toast.LENGTH_SHORT).show();
                         finish();
                     }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(context, "Failed to add category: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
