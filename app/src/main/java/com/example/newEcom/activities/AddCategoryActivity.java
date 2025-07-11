@@ -67,8 +67,23 @@ public class AddCategoryActivity extends AppCompatActivity {
                     @Override
                     public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                         if (task.isSuccessful()) {
-                            categoryId = Integer.parseInt(task.getResult().get("lastCategoryId").toString()) + 1;
-                            idEditText.setText(categoryId+ "");
+                            DocumentSnapshot document = task.getResult();
+                            if (document != null && document.exists()) {
+                                Object lastCategoryIdObj = document.get("lastCategoryId");
+                                if (lastCategoryIdObj != null) {
+                                    categoryId = Integer.parseInt(lastCategoryIdObj.toString()) + 1;
+                                    idEditText.setText(categoryId + "");
+                                } else {
+                                    categoryId = 1;
+                                    idEditText.setText(categoryId + "");
+                                }
+                            } else {
+                                categoryId = 1;
+                                idEditText.setText(categoryId + "");
+                            }
+                        } else {
+                            categoryId = 1;
+                            idEditText.setText(categoryId + "");
                         }
                     }
                 });
