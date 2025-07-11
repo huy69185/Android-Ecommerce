@@ -27,6 +27,8 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
@@ -62,28 +64,29 @@ public class AddCategoryActivity extends AppCompatActivity {
         backBtn = findViewById(R.id.backBtn);
         removeImageBtn = findViewById(R.id.removeImageBtn);
 
-        FirebaseUtil.getDetails().get()
-                .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+        // Lấy ID lớn nhất từ Firestore dựa trên categoryId
+        FirebaseUtil.getCategories()
+                .orderBy("categoryId", Query.Direction.DESCENDING)
+                .limit(1)
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
                     @Override
-                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
                         if (task.isSuccessful()) {
-                            DocumentSnapshot document = task.getResult();
-                            if (document != null && document.exists()) {
-                                Object lastCategoryIdObj = document.get("lastCategoryId");
-                                if (lastCategoryIdObj != null) {
-                                    categoryId = Integer.parseInt(lastCategoryIdObj.toString()) + 1;
-                                    idEditText.setText(categoryId + "");
-                                } else {
-                                    categoryId = 1;
-                                    idEditText.setText(categoryId + "");
-                                }
+                            if (!task.getResult().isEmpty()) {
+                                DocumentSnapshot document = task.getResult().getDocuments().get(0);
+                                Integer maxId = document.getLong("categoryId") != null ? document.getLong("categoryId").intValue() : 0;
+                                categoryId = maxId + 1;
                             } else {
-                                categoryId = 1;
-                                idEditText.setText(categoryId + "");
+                                categoryId = 1; // Nếu không có dữ liệu, bắt đầu từ 1
                             }
+                            idEditText.setText(String.valueOf(categoryId));
+                            idEditText.setEnabled(false); // Không cho sửa ID
                         } else {
+                            Toast.makeText(context, "Failed to fetch max ID: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
                             categoryId = 1;
-                            idEditText.setText(categoryId + "");
+                            idEditText.setText(String.valueOf(categoryId));
+                            idEditText.setEnabled(false);
                         }
                     }
                 });
@@ -128,19 +131,10 @@ public class AddCategoryActivity extends AppCompatActivity {
                 .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
                     @Override
                     public void onSuccess(DocumentReference documentReference) {
-                        FirebaseUtil.getDetails().update("lastCategoryId", categoryId)
-                                .addOnCompleteListener(new OnCompleteListener<Void>() {
-                                    @Override
-                                    public void onComplete(@NonNull Task<Void> task) {
-                                        if (task.isSuccessful()) {
-                                            Toast.makeText(AddCategoryActivity.this, "Category has been added successfully!", Toast.LENGTH_SHORT).show();
-                                            finish();
-                                        }
-                                    }
-                                });
+                        Toast.makeText(AddCategoryActivity.this, "Category has been added successfully!", Toast.LENGTH_SHORT).show();
+                        finish();
                     }
                 });
-
     }
 
     private void removeImage() {
@@ -209,27 +203,34 @@ public class AddCategoryActivity extends AppCompatActivity {
                 categoryId = Integer.parseInt(idEditText.getText().toString());
                 FirebaseUtil.getCategoryImageReference(categoryId + "").putFile(imageUri)
                         .addOnCompleteListener(t -> {
-                            imageUploaded = true;
-
-                            FirebaseUtil.getCategoryImageReference(categoryId + "").getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                                @Override
-                                public void onSuccess(Uri uri) {
-                                    categoryImage = uri.toString();
-
-                                    Picasso.get().load(uri).into(categoryImageView, new Callback() {
-                                        @Override
-                                        public void onSuccess() {
-                                            dialog.dismiss();
-                                        }
-
-                                        @Override
-                                        public void onError(Exception e) {
-                                        }
-                                    });
-                                    categoryImageView.setVisibility(View.VISIBLE);
-                                    removeImageBtn.setVisibility(View.VISIBLE);
-                                }
-                            });
+                            if (t.isSuccessful()) {
+                                imageUploaded = true;
+                                FirebaseUtil.getCategoryImageReference(categoryId + "").getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                    @Override
+                                    public void onSuccess(Uri uri) {
+                                        categoryImage = uri.toString();
+                                        Picasso.get().load(uri).into(categoryImageView, new Callback() {
+                                            @Override
+                                            public void onSuccess() {
+                                                dialog.dismiss();
+                                            }
+                                            @Override
+                                            public void onError(Exception e) {
+                                                dialog.dismiss();
+                                                Toast.makeText(context, "Error loading image", Toast.LENGTH_SHORT).show();
+                                            }
+                                        });
+                                        categoryImageView.setVisibility(View.VISIBLE);
+                                        removeImageBtn.setVisibility(View.VISIBLE);
+                                    }
+                                }).addOnFailureListener(e -> {
+                                    dialog.dismiss();
+                                    Toast.makeText(context, "Error getting download URL: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                });
+                            } else {
+                                dialog.dismiss();
+                                Toast.makeText(context, "Error uploading image: " + t.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            }
                         });
             }
         }
