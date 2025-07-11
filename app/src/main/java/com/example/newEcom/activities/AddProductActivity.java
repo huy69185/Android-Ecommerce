@@ -83,7 +83,22 @@ public class AddProductActivity extends AppCompatActivity {
                     @Override
                     public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                         if (task.isSuccessful()) {
-                            productId = task.getResult().getLong("lastProductId").intValue() + 1;
+                            DocumentSnapshot document = task.getResult();
+                            if (document != null && document.exists()) {
+                                Long lastProductId = document.getLong("lastProductId");
+                                if (lastProductId != null) {
+                                    productId = lastProductId.intValue() + 1;
+                                    idEditText.setText(productId + "");
+                                } else {
+                                    productId = 1;
+                                    idEditText.setText(productId + "");
+                                }
+                            } else {
+                                productId = 1;
+                                idEditText.setText(productId + "");
+                            }
+                        } else {
+                            productId = 1;
                             idEditText.setText(productId + "");
                         }
                     }
