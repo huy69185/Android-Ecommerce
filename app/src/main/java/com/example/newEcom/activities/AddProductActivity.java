@@ -28,8 +28,8 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.dynamiclinks.DynamicLink;
 import com.google.firebase.dynamiclinks.FirebaseDynamicLinks;
 import com.google.firebase.dynamiclinks.ShortDynamicLink;
-import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.storage.FirebaseStorage;
@@ -78,28 +78,29 @@ public class AddProductActivity extends AppCompatActivity {
         backBtn = findViewById(R.id.backBtn);
         removeImageBtn = findViewById(R.id.removeImageBtn);
 
-        FirebaseUtil.getDetails().get()
-                .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+        // Lấy ID lớn nhất từ Firestore dựa trên productId
+        FirebaseUtil.getProducts()
+                .orderBy("productId", Query.Direction.DESCENDING)
+                .limit(1)
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
                     @Override
-                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
                         if (task.isSuccessful()) {
-                            DocumentSnapshot document = task.getResult();
-                            if (document != null && document.exists()) {
-                                Long lastProductId = document.getLong("lastProductId");
-                                if (lastProductId != null) {
-                                    productId = lastProductId.intValue() + 1;
-                                    idEditText.setText(productId + "");
-                                } else {
-                                    productId = 1;
-                                    idEditText.setText(productId + "");
-                                }
+                            if (!task.getResult().isEmpty()) {
+                                DocumentSnapshot document = task.getResult().getDocuments().get(0);
+                                Integer maxId = document.getLong("productId") != null ? document.getLong("productId").intValue() : 0;
+                                productId = maxId + 1;
                             } else {
-                                productId = 1;
-                                idEditText.setText(productId + "");
+                                productId = 1; // Nếu không có dữ liệu, bắt đầu từ 1
                             }
+                            idEditText.setText(String.valueOf(productId));
+                            idEditText.setEnabled(false); // Không cho sửa ID
                         } else {
+                            Toast.makeText(context, "Failed to fetch max ID: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
                             productId = 1;
-                            idEditText.setText(productId + "");
+                            idEditText.setText(String.valueOf(productId));
+                            idEditText.setEnabled(false);
                         }
                     }
                 });
@@ -173,13 +174,8 @@ public class AddProductActivity extends AppCompatActivity {
         ProductModel model = new ProductModel(productName, sk, productImage, category, desc, spec, price, discount, price - discount, productId, stock, shareLink, 0f, 0);
         FirebaseUtil.getProducts().add(model)
                 .addOnSuccessListener(documentReference -> {
-                    FirebaseUtil.getDetails().update("lastProductId", productId)
-                            .addOnCompleteListener(task -> {
-                                if (task.isSuccessful()) {
-                                    Toast.makeText(AddProductActivity.this, "Product has been added successfully!", Toast.LENGTH_SHORT).show();
-                                    finish();
-                                }
-                            });
+                    Toast.makeText(AddProductActivity.this, "Product has been added successfully!", Toast.LENGTH_SHORT).show();
+                    finish();
                 });
     }
 
@@ -273,24 +269,31 @@ public class AddProductActivity extends AppCompatActivity {
                 productId = Integer.parseInt(idEditText.getText().toString());
                 FirebaseUtil.getProductImageReference(productId + "").putFile(imageUri)
                         .addOnCompleteListener(t -> {
-                            imageUploaded = true;
-
-                            FirebaseUtil.getProductImageReference(productId + "").getDownloadUrl().addOnSuccessListener(uri -> {
-                                productImage = uri.toString();
-
-                                Picasso.get().load(uri).into(productImageView, new Callback() {
-                                    @Override
-                                    public void onSuccess() {
-                                        dialog.dismiss();
-                                    }
-
-                                    @Override
-                                    public void onError(Exception e) {
-                                    }
+                            if (t.isSuccessful()) {
+                                imageUploaded = true;
+                                FirebaseUtil.getProductImageReference(productId + "").getDownloadUrl().addOnSuccessListener(uri -> {
+                                    productImage = uri.toString();
+                                    Picasso.get().load(uri).into(productImageView, new Callback() {
+                                        @Override
+                                        public void onSuccess() {
+                                            dialog.dismiss();
+                                        }
+                                        @Override
+                                        public void onError(Exception e) {
+                                            dialog.dismiss();
+                                            Toast.makeText(context, "Error loading image", Toast.LENGTH_SHORT).show();
+                                        }
+                                    });
+                                    productImageView.setVisibility(View.VISIBLE);
+                                    removeImageBtn.setVisibility(View.VISIBLE);
+                                }).addOnFailureListener(e -> {
+                                    dialog.dismiss();
+                                    Toast.makeText(context, "Error getting download URL: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                                 });
-                                productImageView.setVisibility(View.VISIBLE);
-                                removeImageBtn.setVisibility(View.VISIBLE);
-                            });
+                            } else {
+                                dialog.dismiss();
+                                Toast.makeText(context, "Error uploading image: " + t.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            }
                         });
             }
         }

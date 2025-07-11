@@ -27,6 +27,8 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
@@ -45,7 +47,6 @@ public class AddBannerActivity extends AppCompatActivity {
     Context context = this;
     boolean imageUploaded = false;
 
-    //    ProgressDialog dialog;
     SweetAlertDialog dialog;
 
     @Override
@@ -63,28 +64,29 @@ public class AddBannerActivity extends AppCompatActivity {
         backBtn = findViewById(R.id.backBtn);
         removeImageBtn = findViewById(R.id.removeImageBtn);
 
-        FirebaseUtil.getDetails().get()
-                .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+        // Lấy ID lớn nhất từ Firestore dựa trên bannerId
+        FirebaseUtil.getBanner()
+                .orderBy("bannerId", Query.Direction.DESCENDING)
+                .limit(1)
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
                     @Override
-                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
                         if (task.isSuccessful()) {
-                            DocumentSnapshot document = task.getResult();
-                            if (document != null && document.exists()) {
-                                Object lastBannerIdObj = document.get("lastBannerId");
-                                if (lastBannerIdObj != null) {
-                                    bannerId = Integer.parseInt(lastBannerIdObj.toString()) + 1;
-                                    idEditText.setText(bannerId + "");
-                                } else {
-                                    bannerId = 1;
-                                    idEditText.setText(bannerId + "");
-                                }
+                            if (!task.getResult().isEmpty()) {
+                                DocumentSnapshot document = task.getResult().getDocuments().get(0);
+                                Integer maxId = document.getLong("bannerId") != null ? document.getLong("bannerId").intValue() : 0;
+                                bannerId = maxId + 1;
                             } else {
-                                bannerId = 1;
-                                idEditText.setText(bannerId + "");
+                                bannerId = 1; // Nếu không có dữ liệu, bắt đầu từ 1
                             }
+                            idEditText.setText(String.valueOf(bannerId));
+                            idEditText.setEnabled(false); // Không cho sửa ID
                         } else {
+                            Toast.makeText(context, "Failed to fetch max ID: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
                             bannerId = 1;
-                            idEditText.setText(bannerId + "");
+                            idEditText.setText(String.valueOf(bannerId));
+                            idEditText.setEnabled(false);
                         }
                     }
                 });
@@ -135,19 +137,10 @@ public class AddBannerActivity extends AppCompatActivity {
                 .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
                     @Override
                     public void onSuccess(DocumentReference documentReference) {
-                        FirebaseUtil.getDetails().update("lastBannerId", bannerId)
-                                .addOnCompleteListener(new OnCompleteListener<Void>() {
-                                    @Override
-                                    public void onComplete(@NonNull Task<Void> task) {
-                                        if (task.isSuccessful()) {
-                                            Toast.makeText(AddBannerActivity.this, "Banner has been added successfully!", Toast.LENGTH_SHORT).show();
-                                            finish();
-                                        }
-                                    }
-                                });
+                        Toast.makeText(AddBannerActivity.this, "Banner has been added successfully!", Toast.LENGTH_SHORT).show();
+                        finish();
                     }
                 });
-
     }
 
     private void removeImage() {
@@ -208,27 +201,34 @@ public class AddBannerActivity extends AppCompatActivity {
                 bannerId = Integer.parseInt(idEditText.getText().toString());
                 FirebaseUtil.getBannerImageReference(bannerId + "").putFile(imageUri)
                         .addOnCompleteListener(t -> {
-                            imageUploaded = true;
-
-                            FirebaseUtil.getBannerImageReference(bannerId + "").getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                                @Override
-                                public void onSuccess(Uri uri) {
-                                    bannerImage = uri.toString();
-
-                                    Picasso.get().load(uri).into(bannerImageView, new Callback() {
-                                        @Override
-                                        public void onSuccess() {
-                                            dialog.dismiss();
-                                        }
-
-                                        @Override
-                                        public void onError(Exception e) {
-                                        }
-                                    });
-                                    bannerImageView.setVisibility(View.VISIBLE);
-                                    removeImageBtn.setVisibility(View.VISIBLE);
-                                }
-                            });
+                            if (t.isSuccessful()) {
+                                imageUploaded = true;
+                                FirebaseUtil.getBannerImageReference(bannerId + "").getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                    @Override
+                                    public void onSuccess(Uri uri) {
+                                        bannerImage = uri.toString();
+                                        Picasso.get().load(uri).into(bannerImageView, new Callback() {
+                                            @Override
+                                            public void onSuccess() {
+                                                dialog.dismiss();
+                                            }
+                                            @Override
+                                            public void onError(Exception e) {
+                                                dialog.dismiss();
+                                                Toast.makeText(context, "Error loading image", Toast.LENGTH_SHORT).show();
+                                            }
+                                        });
+                                        bannerImageView.setVisibility(View.VISIBLE);
+                                        removeImageBtn.setVisibility(View.VISIBLE);
+                                    }
+                                }).addOnFailureListener(e -> {
+                                    dialog.dismiss();
+                                    Toast.makeText(context, "Error getting download URL: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                });
+                            } else {
+                                dialog.dismiss();
+                                Toast.makeText(context, "Error uploading image: " + t.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            }
                         });
             }
         }
