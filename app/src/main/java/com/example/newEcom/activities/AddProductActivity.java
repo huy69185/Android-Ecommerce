@@ -172,10 +172,15 @@ public class AddProductActivity extends AppCompatActivity {
         int stock = Integer.parseInt(stockEditText.getText().toString());
 
         ProductModel model = new ProductModel(productName, sk, productImage, category, desc, spec, price, discount, price - discount, productId, stock, shareLink, 0f, 0);
-        FirebaseUtil.getProducts().add(model)
+        // Sử dụng set() với ID cố định là "product" + productId
+        FirebaseUtil.getProducts().document("product" + productId)
+                .set(model)
                 .addOnSuccessListener(documentReference -> {
                     Toast.makeText(AddProductActivity.this, "Product has been added successfully!", Toast.LENGTH_SHORT).show();
                     finish();
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(context, "Failed to add product: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
@@ -183,13 +188,24 @@ public class AddProductActivity extends AppCompatActivity {
         if (!validate())
             return;
 
+        productName = nameEditText.getText().toString();
+        if (productName.isEmpty()) {
+            Toast.makeText(context, "Product name is required for Dynamic Link", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Thay bằng domain thực tế từ Firebase Console (ví dụ: https://myecomapp.page.link)
+        String domainUriPrefix = "https://mynewshop.page.link"; // Cập nhật domain của bạn
+        // Thay bằng deep link thực tế
+        String deepLink = "https://mynewshop.page.link/product?id=" + productId; // Cập nhật domain thực tế
+
         FirebaseDynamicLinks.getInstance().createDynamicLink()
-                .setLink(Uri.parse("https://www.example.com/?product_id=" + productId))
-                .setDomainUriPrefix("https://shopease.page.link")
+                .setLink(Uri.parse(deepLink))
+                .setDomainUriPrefix(domainUriPrefix)
                 .setAndroidParameters(new DynamicLink.AndroidParameters.Builder("com.example.newEcom").build())
                 .setSocialMetaTagParameters(new DynamicLink.SocialMetaTagParameters.Builder()
                         .setTitle(productName)
-                        .setImageUrl(Uri.parse(productImage))
+                        .setImageUrl(Uri.parse(productImage != null ? productImage : ""))
                         .build())
                 .buildShortDynamicLink(ShortDynamicLink.Suffix.SHORT)
                 .addOnCompleteListener(this, task -> {
@@ -198,7 +214,8 @@ public class AddProductActivity extends AppCompatActivity {
                         shareLink = shortLink.toString();
                         addToFirebase();
                     } else {
-                        Log.i("Error", "There is some error", task.getException());
+                        Log.e("DynamicLinkError", "Failed to create Dynamic Link: " + task.getException().getMessage());
+                        Toast.makeText(context, "Failed to create Dynamic Link: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
                     }
                 });
     }
