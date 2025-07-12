@@ -80,4 +80,5 @@ dependencies {
     // Lottie Animation
     implementation("com.airbnb.android:lottie:6.3.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation ("com.google.android.gms:play-services-tasks:18.1.0")
 }
