@@ -2,13 +2,18 @@ package com.example.newEcom.activities;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
@@ -32,11 +37,19 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationBarView;
+import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.dynamiclinks.FirebaseDynamicLinks;
 import com.google.firebase.dynamiclinks.PendingDynamicLinkData;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.SetOptions;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.mancj.materialsearchbar.MaterialSearchBar;
 import com.mancj.materialsearchbar.SimpleOnSearchActionListener;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
     BottomNavigationView bottomNavigationView;
@@ -146,6 +159,51 @@ public class MainActivity extends AppCompatActivity {
                     .commit();
             bottomNavigationView.setSelectedItemId(R.id.profile);
         }
+
+        // Kiểm tra quyền thông báo
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+            }
+        }
+
+        // Lấy và lưu token không đồng bộ
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        auth.addAuthStateListener(firebaseAuth -> {
+            if (firebaseAuth.getCurrentUser() != null) {
+                String userId = firebaseAuth.getCurrentUser().getUid();
+                new Thread(() -> {
+                    try {
+                        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+                            if (task.isSuccessful()) {
+                                String token = task.getResult();
+                                Log.d("FCM", "FCM Token fetched for userId: " + userId + ", Token: " + token);
+                                saveTokenToFirestore(userId, token); // Lưu token trong luồng riêng
+                            } else {
+                                Log.e("FCM", "Failed to get FCM token", task.getException());
+                            }
+                        }).addOnFailureListener(e -> Log.e("FCM", "Error getting token", e));
+                    } catch (Exception e) {
+                        Log.e("FCM", "Exception in token retrieval", e);
+                    }
+                }).start();
+            }
+        });
+    }
+
+    // Phương thức lưu token vào Firestore (không đồng bộ)
+    private void saveTokenToFirestore(String userId, String token) {
+        runOnUiThread(() -> {
+            FirebaseFirestore db = FirebaseUtil.getFirestore();
+            Map<String, Object> userData = new HashMap<>();
+            userData.put("fcmToken", token);
+            userData.put("userName", FirebaseAuth.getInstance().getCurrentUser() != null ?
+                    FirebaseAuth.getInstance().getCurrentUser().getDisplayName() : userId);
+            db.collection("users").document(userId)
+                    .set(userData, com.google.firebase.firestore.SetOptions.merge())
+                    .addOnSuccessListener(aVoid -> Log.d("FCM", "Token saved successfully for userId: " + userId + ", Token: " + token))
+                    .addOnFailureListener(e -> Log.e("FCM", "Failed to save token for userId: " + userId + ", Error: " + e.getMessage()));
+        });
     }
 
     public void showSearchBar() {
@@ -218,6 +276,7 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .addOnFailureListener(e -> Log.i("Error123", e.toString()));
     }
+
     public void replaceFragment(Fragment fragment) {
         getSupportFragmentManager().beginTransaction()
                 .replace(R.id.main_frame_layout, fragment)

@@ -1,6 +1,7 @@
 package com.example.newEcom.fragments;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -48,6 +49,7 @@ public class ChatFragment extends Fragment {
 
         roomId = userId; // roomId is userId for simplicity
         setupChatRecyclerView(view);
+        setupMessageListener();
         shimmerFrameLayout.startShimmer();
 
         sendButton.setOnClickListener(v -> {
@@ -87,20 +89,46 @@ public class ChatFragment extends Fragment {
     private void sendMessage(String message) {
         String userId = FirebaseUtil.getCurrentUserId();
         if (userId != null && !userId.equals(FirebaseUtil.ADMIN_USER_ID)) {
-            // Lấy userName một lần và không gán lại
             String userName = FirebaseAuth.getInstance().getCurrentUser() != null ?
                     FirebaseAuth.getInstance().getCurrentUser().getDisplayName() : userId;
+            String messageId = FirebaseUtil.getChatMessages(roomId).document().getId(); // Auto-generated ID
             MessageModel messageModel = new MessageModel(userId, message, Timestamp.now(), false);
-            FirebaseUtil.getChatMessages(roomId).document(userName != null ? userName : userId).set(messageModel)
+            Log.d("ChatFragment", "Sending message: " + message + " to roomId: " + roomId + " with messageId: " + messageId);
+            FirebaseUtil.getChatMessages(roomId).document(messageId + userName).set(messageModel)
                     .addOnSuccessListener(documentReference -> {
+                        Log.d("ChatFragment", "Message saved successfully for messageId: " + messageId);
                         FirebaseUtil.getChatRooms().document(roomId).update(
                                 "lastMessage", message,
                                 "lastMessageTimestamp", Timestamp.now(),
                                 "userName", userName != null ? userName : userId
                         );
                         Toast.makeText(getContext(), "Message sent to Admin", Toast.LENGTH_SHORT).show();
-                    });
+
+                        // Send notification to admin
+                        Log.d("ChatFragment", "Calling sendChatNotification for receiverId: " + FirebaseUtil.ADMIN_USER_ID);
+                        FirebaseUtil.sendChatNotification(FirebaseUtil.ADMIN_USER_ID, roomId, message);
+                    })
+                    .addOnFailureListener(e -> Log.e("ChatFragment", "Failed to send message: ", e));
+        } else {
+            Log.e("ChatFragment", "User ID is null or is Admin");
         }
+    }
+    private void setupMessageListener() {
+        FirebaseUtil.getChatMessages(roomId).addSnapshotListener((value, error) -> {
+            if (error != null) {
+                Log.e("ChatFragment", "Listen failed.", error);
+                return;
+            }
+            if (value != null && !value.isEmpty()) {
+                for (DocumentSnapshot doc : value.getDocuments()) {
+                    MessageModel message = doc.toObject(MessageModel.class);
+                    if (message != null && message.isAdmin() && !message.getSenderId().equals(FirebaseUtil.getCurrentUserId())) {
+                        // Gửi thông báo đến user (nếu cần, nhưng thường admin gửi trước)
+                        FirebaseUtil.sendChatNotification(FirebaseUtil.getCurrentUserId(), roomId, message.getMessage());
+                    }
+                }
+            }
+        });
     }
 
     @Override

@@ -2,9 +2,14 @@ package com.example.newEcom.activities;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentTransaction;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.LinearLayout;
@@ -20,8 +25,10 @@ import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -80,6 +87,51 @@ public class AdminActivity extends AppCompatActivity {
             }
         });
         updateDashboardTotalPrice();
+
+        // Kiểm tra quyền thông báo
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+            }
+        }
+
+        // Lấy và lưu token không đồng bộ
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        auth.addAuthStateListener(firebaseAuth -> {
+            if (firebaseAuth.getCurrentUser() != null) {
+                String userId = firebaseAuth.getCurrentUser().getUid();
+                new Thread(() -> {
+                    try {
+                        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+                            if (task.isSuccessful()) {
+                                String token = task.getResult();
+                                Log.d("FCM", "FCM Token fetched for userId: " + userId + ", Token: " + token);
+                                saveTokenToFirestore(userId, token); // Lưu token trong luồng riêng
+                            } else {
+                                Log.e("FCM", "Failed to get FCM token", task.getException());
+                            }
+                        }).addOnFailureListener(e -> Log.e("FCM", "Error getting token", e));
+                    } catch (Exception e) {
+                        Log.e("FCM", "Exception in token retrieval", e);
+                    }
+                }).start();
+            }
+        });
+    }
+
+    // Phương thức lưu token vào Firestore (không đồng bộ)
+    private void saveTokenToFirestore(String userId, String token) {
+        runOnUiThread(() -> {
+            FirebaseFirestore db = FirebaseUtil.getFirestore();
+            Map<String, Object> userData = new HashMap<>();
+            userData.put("fcmToken", token);
+            userData.put("userName", FirebaseAuth.getInstance().getCurrentUser() != null ?
+                    FirebaseAuth.getInstance().getCurrentUser().getDisplayName() : userId);
+            db.collection("users").document(userId)
+                    .set(userData, com.google.firebase.firestore.SetOptions.merge())
+                    .addOnSuccessListener(aVoid -> Log.d("FCM", "Token saved successfully for userId: " + userId + ", Token: " + token))
+                    .addOnFailureListener(e -> Log.e("FCM", "Failed to save token for userId: " + userId + ", Error: " + e.getMessage()));
+        });
     }
 
     private void getDetails() {

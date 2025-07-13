@@ -102,7 +102,6 @@ public class OrderAdminDetailsFragment extends Fragment {
                 .collection("items")
                 .document(itemId);
 
-        // Kiểm tra tồn tại tài liệu trước khi cập nhật
         orderRef.get().addOnSuccessListener(documentSnapshot -> {
             if (!documentSnapshot.exists()) {
                 Log.e(TAG, "Document does not exist for orderParentId: " + orderParentId + ", itemId: " + itemId);
@@ -111,7 +110,6 @@ public class OrderAdminDetailsFragment extends Fragment {
             }
 
             Log.d(TAG, "Current status: " + currentStatus + ", Attempting to set to: " + newStatus);
-            // Logic chuyển trạng thái
             if ("Pending".equals(currentStatus) && ("Delivery".equals(newStatus) || "Cancel".equals(newStatus))) {
                 orderRef.update("status", newStatus)
                         .addOnSuccessListener(aVoid -> {
@@ -119,6 +117,11 @@ public class OrderAdminDetailsFragment extends Fragment {
                             updateStatusButtons();
                             Toast.makeText(getActivity(), "Status updated to " + newStatus, Toast.LENGTH_SHORT).show();
                             Log.d(TAG, "Status successfully updated to " + newStatus);
+
+                            OrderItemModel orderItem = documentSnapshot.toObject(OrderItemModel.class);
+                            if (orderItem != null && orderItem.getUserId() != null) {
+                                FirebaseUtil.sendOrderStatusNotification(orderItem.getUserId(), orderItem.getItemId(), newStatus);
+                            }
                         })
                         .addOnFailureListener(e -> {
                             Log.e(TAG, "Failed to update status: ", e);
@@ -131,6 +134,11 @@ public class OrderAdminDetailsFragment extends Fragment {
                             updateStatusButtons();
                             Toast.makeText(getActivity(), "Status updated to " + newStatus, Toast.LENGTH_SHORT).show();
                             Log.d(TAG, "Status successfully updated to " + newStatus);
+
+                            OrderItemModel orderItem = documentSnapshot.toObject(OrderItemModel.class);
+                            if (orderItem != null && orderItem.getUserId() != null) {
+                                FirebaseUtil.sendOrderStatusNotification(orderItem.getUserId(), orderItem.getItemId(), newStatus);
+                            }
                         })
                         .addOnFailureListener(e -> {
                             Log.e(TAG, "Failed to update status: ", e);
