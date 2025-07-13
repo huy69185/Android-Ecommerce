@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class FirebaseUtil {
     public static final String ADMIN_USER_ID = "3QRm0nJTKnU9OpVul6N7kEV0OFF3";
     private static FirebaseFirestore firestore;
+    private static final String TAG = "FirebaseUtil";
 
     public static CollectionReference getCategories() {
         return FirebaseFirestore.getInstance().collection("categories");
@@ -113,7 +114,15 @@ public class FirebaseUtil {
     }
 
     public static CollectionReference getChatMessages(String roomId) {
-        return FirebaseFirestore.getInstance().collection("chat_rooms").document(roomId).collection("messages");
+        return FirebaseFirestore.getInstance().collection("chats").document(roomId).collection("messages");
+    }
+    public static CollectionReference getNotifications() {
+        FirebaseFirestore db = getFirestore();
+        if (db != null) {
+            return db.collection("notifications");
+        }
+        Log.e(TAG, "Firestore is null, cannot get notifications collection");
+        return null;
     }
 
     public interface OnOrderItemsLoadedListener {
@@ -121,10 +130,7 @@ public class FirebaseUtil {
     }
 
     public static FirebaseFirestore getFirestore() {
-        if (firestore == null) {
-            firestore = FirebaseFirestore.getInstance();
-        }
-        return firestore;
+        return FirebaseFirestore.getInstance();
     }
 
     public static void updateDashboardTotalPrice() {
@@ -178,4 +184,62 @@ public class FirebaseUtil {
                 })
                 .addOnFailureListener(e -> Log.e("Dashboard", "Lỗi lấy dữ liệu orders", e));
     }
+    public static void sendChatNotification(String receiverId, String roomId, String message) {
+        Log.d(TAG, "sendChatNotification called for receiverId: " + receiverId + ", roomId: " + roomId + ", message: " + message);
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection("users").document(receiverId).get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    Log.d(TAG, "Document fetched for receiverId: " + receiverId + ", exists: " + documentSnapshot.exists());
+                    if (documentSnapshot.exists()) {
+                        if (documentSnapshot.contains("fcmTokens")) {
+                            List<String> fcmTokens = (List<String>) documentSnapshot.get("fcmTokens");
+                            Log.d(TAG, "fcmTokens found: " + (fcmTokens != null ? fcmTokens.size() : 0));
+                            if (fcmTokens != null && !fcmTokens.isEmpty()) {
+                                for (String fcmToken : fcmTokens) {
+                                    Log.d(TAG, "Sending to fcmToken: " + fcmToken);
+                                    Map<String, String> data = new HashMap<>();
+                                    data.put("title", "New Chat Message");
+                                    data.put("body", message);
+                                }
+                            } else {
+                                Log.w(TAG, "No valid FCM tokens for receiver: " + receiverId);
+                            }
+                        } else {
+                            String fcmToken = documentSnapshot.getString("fcmToken");
+                            Log.d(TAG, "Single fcmToken found: " + fcmToken);
+                            if (fcmToken != null && !fcmToken.isEmpty()) {
+                                Map<String, String> data = new HashMap<>();
+                                data.put("title", "New Chat Message");
+                                data.put("body", message);
+                            } else {
+                                Log.w(TAG, "No valid FCM token for receiver: " + receiverId);
+                            }
+                        }
+                    } else {
+                        Log.w(TAG, "No user document found for receiver: " + receiverId);
+                    }
+                })
+                .addOnFailureListener(e -> Log.e(TAG, "Error fetching receiver token: ", e));
+    }
+
+    public static void sendOrderStatusNotification(String userId, String orderId, String status) {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection("users").document(userId).get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        String fcmToken = documentSnapshot.getString("token");
+                        if (fcmToken != null) {
+                            Map<String, String> data = new HashMap<>();
+                            data.put("title", "Order Status Update");
+                            data.put("body", "Order " + orderId + " status changed to " + status);
+                        } else {
+                            Log.w(TAG, "No FCM token for user: " + userId);
+                        }
+                    } else {
+                        Log.w(TAG, "No user document for user: " + userId);
+                    }
+                })
+                .addOnFailureListener(e -> Log.e(TAG, "Error getting user token: ", e));
+    }
+
 }
