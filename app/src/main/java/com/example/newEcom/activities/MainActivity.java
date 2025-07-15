@@ -37,7 +37,6 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationBarView;
-import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.dynamiclinks.FirebaseDynamicLinks;
 import com.google.firebase.dynamiclinks.PendingDynamicLinkData;
@@ -48,6 +47,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.mancj.materialsearchbar.MaterialSearchBar;
 import com.mancj.materialsearchbar.SimpleOnSearchActionListener;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -122,6 +122,9 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+
+        // Xử lý thông báo từ Intent
+        handleNotification(getIntent());
         bottomNavigationView.setSelectedItemId(R.id.home);
         addOrRemoveBadge();
 
@@ -178,7 +181,7 @@ public class MainActivity extends AppCompatActivity {
                             if (task.isSuccessful()) {
                                 String token = task.getResult();
                                 Log.d("FCM", "FCM Token fetched for userId: " + userId + ", Token: " + token);
-                                saveTokenToFirestore(userId, token); // Lưu token trong luồng riêng
+                                saveTokenToFirestore(userId, token);
                             } else {
                                 Log.e("FCM", "Failed to get FCM token", task.getException());
                             }
@@ -191,16 +194,45 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // Phương thức lưu token vào Firestore (không đồng bộ)
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleNotification(intent);
+    }
+
+    private void handleNotification(Intent intent) {
+        if (intent.getBooleanExtra("navigateToChat", false)) {
+            String roomId = intent.getStringExtra("roomId");
+            if (roomId != null) {
+                Bundle args = new Bundle();
+                args.putString("roomId", roomId);
+                chatFragment.setArguments(args);
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.main_frame_layout, chatFragment, "chat")
+                        .addToBackStack(null)
+                        .commit();
+                bottomNavigationView.setSelectedItemId(R.id.chat);
+            }
+        } else if (intent.getStringExtra("orderParentId") != null) {
+            String orderParentId = intent.getStringExtra("orderParentId");
+            String itemId = intent.getStringExtra("itemId");
+            Intent orderIntent = new Intent(this, OrderDetailsActivity.class);
+            orderIntent.putExtra("orderParentId", orderParentId);
+            orderIntent.putExtra("itemId", itemId);
+            startActivity(orderIntent);
+        }
+    }
+
     private void saveTokenToFirestore(String userId, String token) {
         runOnUiThread(() -> {
             FirebaseFirestore db = FirebaseUtil.getFirestore();
             Map<String, Object> userData = new HashMap<>();
-            userData.put("fcmToken", token);
+            userData.put("fcmTokens", com.google.firebase.firestore.FieldValue.arrayUnion(token));
             userData.put("userName", FirebaseAuth.getInstance().getCurrentUser() != null ?
                     FirebaseAuth.getInstance().getCurrentUser().getDisplayName() : userId);
             db.collection("users").document(userId)
-                    .set(userData, com.google.firebase.firestore.SetOptions.merge())
+                    .set(userData, SetOptions.merge())
                     .addOnSuccessListener(aVoid -> Log.d("FCM", "Token saved successfully for userId: " + userId + ", Token: " + token))
                     .addOnFailureListener(e -> Log.e("FCM", "Failed to save token for userId: " + userId + ", Error: " + e.getMessage()));
         });

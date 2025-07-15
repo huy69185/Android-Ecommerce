@@ -116,6 +116,7 @@ public class FirebaseUtil {
     public static CollectionReference getChatMessages(String roomId) {
         return FirebaseFirestore.getInstance().collection("chats").document(roomId).collection("messages");
     }
+
     public static CollectionReference getNotifications() {
         FirebaseFirestore db = getFirestore();
         if (db != null) {
@@ -126,7 +127,7 @@ public class FirebaseUtil {
     }
 
     public interface OnOrderItemsLoadedListener {
-        void onItemsLoaded(List<Map<String, Object>> orderItemsData); // Thay đổi tham số
+        void onItemsLoaded(List<Map<String, Object>> orderItemsData);
     }
 
     public static FirebaseFirestore getFirestore() {
@@ -134,7 +135,7 @@ public class FirebaseUtil {
     }
 
     public static void updateDashboardTotalPrice() {
-        AtomicReference<Double> totalRevenue = new AtomicReference<>(0.0); // Tổng doanh thu
+        AtomicReference<Double> totalRevenue = new AtomicReference<>(0.0);
         FirebaseUtil.getFirestore().collection("orders")
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
@@ -148,8 +149,8 @@ public class FirebaseUtil {
                     List<Task<QuerySnapshot>> tasks = new ArrayList<>();
                     for (DocumentSnapshot doc : querySnapshot) {
                         String orderId = doc.getId();
-                        String status = doc.getString("status"); // Lấy trạng thái của đơn hàng
-                        if ("Confirm".equals(status)) { // Chỉ xử lý nếu trạng thái là "Confirm"
+                        String status = doc.getString("status");
+                        if ("Confirm".equals(status)) {
                             Task<QuerySnapshot> task = doc.getReference().collection("items").get();
                             tasks.add(task);
                         }
@@ -176,7 +177,7 @@ public class FirebaseUtil {
                             }
                             finalTotal += orderTotal;
                         }
-                        totalRevenue.set(finalTotal); // Cập nhật tổng doanh thu
+                        totalRevenue.set(finalTotal);
                         FirebaseUtil.getDetails().update("totalPrice", totalRevenue.get())
                                 .addOnSuccessListener(aVoid -> Log.d("Dashboard", "Tổng doanh thu đã được cập nhật: " + totalRevenue.get()))
                                 .addOnFailureListener(e -> Log.e("Dashboard", "Lỗi cập nhật tổng doanh thu", e));
@@ -184,62 +185,4 @@ public class FirebaseUtil {
                 })
                 .addOnFailureListener(e -> Log.e("Dashboard", "Lỗi lấy dữ liệu orders", e));
     }
-    public static void sendChatNotification(String receiverId, String roomId, String message) {
-        Log.d(TAG, "sendChatNotification called for receiverId: " + receiverId + ", roomId: " + roomId + ", message: " + message);
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        db.collection("users").document(receiverId).get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    Log.d(TAG, "Document fetched for receiverId: " + receiverId + ", exists: " + documentSnapshot.exists());
-                    if (documentSnapshot.exists()) {
-                        if (documentSnapshot.contains("fcmTokens")) {
-                            List<String> fcmTokens = (List<String>) documentSnapshot.get("fcmTokens");
-                            Log.d(TAG, "fcmTokens found: " + (fcmTokens != null ? fcmTokens.size() : 0));
-                            if (fcmTokens != null && !fcmTokens.isEmpty()) {
-                                for (String fcmToken : fcmTokens) {
-                                    Log.d(TAG, "Sending to fcmToken: " + fcmToken);
-                                    Map<String, String> data = new HashMap<>();
-                                    data.put("title", "New Chat Message");
-                                    data.put("body", message);
-                                }
-                            } else {
-                                Log.w(TAG, "No valid FCM tokens for receiver: " + receiverId);
-                            }
-                        } else {
-                            String fcmToken = documentSnapshot.getString("fcmToken");
-                            Log.d(TAG, "Single fcmToken found: " + fcmToken);
-                            if (fcmToken != null && !fcmToken.isEmpty()) {
-                                Map<String, String> data = new HashMap<>();
-                                data.put("title", "New Chat Message");
-                                data.put("body", message);
-                            } else {
-                                Log.w(TAG, "No valid FCM token for receiver: " + receiverId);
-                            }
-                        }
-                    } else {
-                        Log.w(TAG, "No user document found for receiver: " + receiverId);
-                    }
-                })
-                .addOnFailureListener(e -> Log.e(TAG, "Error fetching receiver token: ", e));
-    }
-
-    public static void sendOrderStatusNotification(String userId, String orderId, String status) {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        db.collection("users").document(userId).get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        String fcmToken = documentSnapshot.getString("token");
-                        if (fcmToken != null) {
-                            Map<String, String> data = new HashMap<>();
-                            data.put("title", "Order Status Update");
-                            data.put("body", "Order " + orderId + " status changed to " + status);
-                        } else {
-                            Log.w(TAG, "No FCM token for user: " + userId);
-                        }
-                    } else {
-                        Log.w(TAG, "No user document for user: " + userId);
-                    }
-                })
-                .addOnFailureListener(e -> Log.e(TAG, "Error getting user token: ", e));
-    }
-
 }
