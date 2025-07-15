@@ -22,7 +22,6 @@ import com.facebook.shimmer.ShimmerFrameLayout;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.DocumentSnapshot;
 
 public class ChatFragment extends Fragment {
     private RecyclerView chatRecyclerView;
@@ -30,6 +29,7 @@ public class ChatFragment extends Fragment {
     private EditText messageEditText;
     private ImageButton sendButton;
     private String roomId;
+    private static final String TAG = "ChatFragment";
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -43,13 +43,21 @@ public class ChatFragment extends Fragment {
         String userId = FirebaseUtil.getCurrentUserId();
         if (userId == null || userId.equals(FirebaseUtil.ADMIN_USER_ID)) {
             Toast.makeText(getContext(), "Admin cannot use this chat", Toast.LENGTH_SHORT).show();
-            getActivity().onBackPressed();
+            if (getActivity() != null) {
+                getActivity().onBackPressed();
+            }
             return view;
         }
 
-        roomId = userId; // roomId is userId for simplicity
+        // Lấy roomId từ Bundle (nếu có, từ thông báo đẩy) hoặc dùng userId
+        if (getArguments() != null && getArguments().containsKey("roomId")) {
+            roomId = getArguments().getString("roomId");
+        } else {
+            roomId = userId; // Mặc định roomId là userId
+        }
+        Log.d(TAG, "Initializing chat with roomId: " + roomId);
+
         setupChatRecyclerView(view);
-        setupMessageListener();
         shimmerFrameLayout.startShimmer();
 
         sendButton.setOnClickListener(v -> {
@@ -57,6 +65,8 @@ public class ChatFragment extends Fragment {
             if (!message.isEmpty()) {
                 sendMessage(message);
                 messageEditText.setText("");
+            } else {
+                Log.w(TAG, "Empty message not sent");
             }
         });
 
@@ -65,8 +75,10 @@ public class ChatFragment extends Fragment {
                 FirebaseAuth.getInstance().getCurrentUser().getDisplayName() : userId;
         if (userName == null) userName = userId; // Fallback nếu không có displayName
         FirebaseUtil.getChatRooms().document(roomId).set(
-                new com.example.newEcom.model.ChatRoomModel(roomId, userId, userName, "", Timestamp.now())
-        );
+                        new com.example.newEcom.model.ChatRoomModel(roomId, userId, userName, "", Timestamp.now()),
+                        com.google.firebase.firestore.SetOptions.merge()
+                ).addOnSuccessListener(aVoid -> Log.d(TAG, "Chat room initialized for roomId: " + roomId))
+                .addOnFailureListener(e -> Log.e(TAG, "Failed to initialize chat room: ", e));
 
         return view;
     }
@@ -84,6 +96,7 @@ public class ChatFragment extends Fragment {
         shimmerContainer.stopShimmer();
         shimmerContainer.setVisibility(View.GONE);
         chatRecyclerView.setVisibility(View.VISIBLE);
+        Log.d(TAG, "Chat RecyclerView set up for roomId: " + roomId);
     }
 
     private void sendMessage(String message) {
@@ -93,41 +106,32 @@ public class ChatFragment extends Fragment {
                     FirebaseAuth.getInstance().getCurrentUser().getDisplayName() : userId;
             String messageId = FirebaseUtil.getChatMessages(roomId).document().getId(); // Auto-generated ID
             MessageModel messageModel = new MessageModel(userId, message, Timestamp.now(), false);
-            Log.d("ChatFragment", "Sending message: " + message + " to roomId: " + roomId + " with messageId: " + messageId);
-            FirebaseUtil.getChatMessages(roomId).document(messageId + userName).set(messageModel)
+            Log.d(TAG, "Sending message: " + message + " to roomId: " + roomId + " with messageId: " + messageId);
+            FirebaseUtil.getChatMessages(roomId).document(messageId).set(messageModel)
                     .addOnSuccessListener(documentReference -> {
-                        Log.d("ChatFragment", "Message saved successfully for messageId: " + messageId);
+                        Log.d(TAG, "Message saved successfully for messageId: " + messageId);
                         FirebaseUtil.getChatRooms().document(roomId).update(
-                                "lastMessage", message,
-                                "lastMessageTimestamp", Timestamp.now(),
-                                "userName", userName != null ? userName : userId
-                        );
+                                        "lastMessage", message,
+                                        "lastMessageTimestamp", Timestamp.now(),
+                                        "userName", userName != null ? userName : userId
+                                ).addOnSuccessListener(aVoid -> Log.d(TAG, "Chat room updated for roomId: " + roomId))
+                                .addOnFailureListener(e -> Log.e(TAG, "Failed to update chat room: ", e));
                         Toast.makeText(getContext(), "Message sent to Admin", Toast.LENGTH_SHORT).show();
-
-                        // Send notification to admin
-                        Log.d("ChatFragment", "Calling sendChatNotification for receiverId: " + FirebaseUtil.ADMIN_USER_ID);
-                        FirebaseUtil.sendChatNotification(FirebaseUtil.ADMIN_USER_ID, roomId, message);
                     })
-                    .addOnFailureListener(e -> Log.e("ChatFragment", "Failed to send message: ", e));
+                    .addOnFailureListener(e -> Log.e(TAG, "Failed to send message: ", e));
         } else {
-            Log.e("ChatFragment", "User ID is null or is Admin");
+            Log.e(TAG, "User ID is null or is Admin");
         }
     }
+
     private void setupMessageListener() {
         FirebaseUtil.getChatMessages(roomId).addSnapshotListener((value, error) -> {
             if (error != null) {
-                Log.e("ChatFragment", "Listen failed.", error);
+                Log.e(TAG, "Listen failed.", error);
                 return;
             }
-            if (value != null && !value.isEmpty()) {
-                for (DocumentSnapshot doc : value.getDocuments()) {
-                    MessageModel message = doc.toObject(MessageModel.class);
-                    if (message != null && message.isAdmin() && !message.getSenderId().equals(FirebaseUtil.getCurrentUserId())) {
-                        // Gửi thông báo đến user (nếu cần, nhưng thường admin gửi trước)
-                        FirebaseUtil.sendChatNotification(FirebaseUtil.getCurrentUserId(), roomId, message.getMessage());
-                    }
-                }
-            }
+            Log.d(TAG, "Message listener updated for roomId: " + roomId);
+            // Cloud Functions sẽ xử lý thông báo
         });
     }
 
@@ -136,6 +140,7 @@ public class ChatFragment extends Fragment {
         super.onStart();
         if (chatAdapter != null) {
             chatAdapter.startListening();
+            Log.d(TAG, "Chat adapter started listening for roomId: " + roomId);
         }
     }
 
@@ -144,6 +149,7 @@ public class ChatFragment extends Fragment {
         super.onStop();
         if (chatAdapter != null) {
             chatAdapter.stopListening();
+            Log.d(TAG, "Chat adapter stopped listening for roomId: " + roomId);
         }
     }
 }

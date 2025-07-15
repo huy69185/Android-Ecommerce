@@ -13,7 +13,6 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 
 import com.example.newEcom.R;
-import com.example.newEcom.model.OrderItemModel;
 import com.example.newEcom.utils.FirebaseUtil;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -30,7 +29,7 @@ public class OrderAdminDetailsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_order_admin_details, container, false);
 
-        // Ánh xạ các view
+        // Initialize views
         orderIdTextView = view.findViewById(R.id.orderIdTextView);
         nameTextView = view.findViewById(R.id.nameTextView);
         emailTextView = view.findViewById(R.id.emailTextView);
@@ -42,15 +41,15 @@ public class OrderAdminDetailsFragment extends Fragment {
         confirmBtn = view.findViewById(R.id.confirmBtn);
         cancelBtn = view.findViewById(R.id.cancelBtn);
 
-        // Lấy dữ liệu từ Bundle
+        // Get data from Bundle
         Bundle args = getArguments();
         if (args != null) {
             orderParentId = args.getString("orderParentId");
             itemId = args.getString("itemId");
             currentStatus = args.getString("status", "Unknown");
             if (orderParentId != null && itemId != null) {
-                orderIdTextView.setText(itemId); // Hiển thị itemId làm ID
-                productName.setText("Amazon Bag"); // Có thể lấy từ model nếu cần
+                orderIdTextView.setText(itemId); // Display itemId as ID
+                productName.setText("Amazon Bag"); // Can be fetched from model if needed
                 Log.d(TAG, "Loaded with orderParentId: " + orderParentId + ", itemId: " + itemId + ", status: " + currentStatus);
                 updateStatusButtons();
             } else {
@@ -62,10 +61,10 @@ public class OrderAdminDetailsFragment extends Fragment {
             Toast.makeText(getActivity(), "Failed to load order details", Toast.LENGTH_SHORT).show();
         }
 
-        // Xử lý nút back
+        // Handle back button
         view.findViewById(R.id.backBtn).setOnClickListener(v -> getActivity().onBackPressed());
 
-        // Xử lý các nút trạng thái
+        // Handle status buttons
         deliveryBtn.setOnClickListener(v -> updateStatus(orderParentId, itemId, currentStatus, "Delivery"));
         confirmBtn.setOnClickListener(v -> updateStatus(orderParentId, itemId, currentStatus, "Confirm"));
         cancelBtn.setOnClickListener(v -> updateStatus(orderParentId, itemId, currentStatus, "Cancel"));
@@ -87,6 +86,7 @@ public class OrderAdminDetailsFragment extends Fragment {
             deliveryBtn.setVisibility(View.VISIBLE);
             cancelBtn.setVisibility(View.VISIBLE);
         }
+        Log.d(TAG, "Updated status buttons for currentStatus: " + currentStatus);
     }
 
     private void updateStatus(String orderParentId, String itemId, String currentStatus, String newStatus) {
@@ -117,11 +117,7 @@ public class OrderAdminDetailsFragment extends Fragment {
                             updateStatusButtons();
                             Toast.makeText(getActivity(), "Status updated to " + newStatus, Toast.LENGTH_SHORT).show();
                             Log.d(TAG, "Status successfully updated to " + newStatus);
-
-                            OrderItemModel orderItem = documentSnapshot.toObject(OrderItemModel.class);
-                            if (orderItem != null && orderItem.getUserId() != null) {
-                                FirebaseUtil.sendOrderStatusNotification(orderItem.getUserId(), orderItem.getItemId(), newStatus);
-                            }
+                            // Notification is handled by Cloud Function
                         })
                         .addOnFailureListener(e -> {
                             Log.e(TAG, "Failed to update status: ", e);
@@ -134,11 +130,7 @@ public class OrderAdminDetailsFragment extends Fragment {
                             updateStatusButtons();
                             Toast.makeText(getActivity(), "Status updated to " + newStatus, Toast.LENGTH_SHORT).show();
                             Log.d(TAG, "Status successfully updated to " + newStatus);
-
-                            OrderItemModel orderItem = documentSnapshot.toObject(OrderItemModel.class);
-                            if (orderItem != null && orderItem.getUserId() != null) {
-                                FirebaseUtil.sendOrderStatusNotification(orderItem.getUserId(), orderItem.getItemId(), newStatus);
-                            }
+                            // Notification is handled by Cloud Function
                         })
                         .addOnFailureListener(e -> {
                             Log.e(TAG, "Failed to update status: ", e);
@@ -153,6 +145,7 @@ public class OrderAdminDetailsFragment extends Fragment {
                             updateStatusButtons();
                             Toast.makeText(getActivity(), "Status set to " + newStatus, Toast.LENGTH_SHORT).show();
                             Log.d(TAG, "Status successfully set to " + newStatus);
+                            // Notification is handled by Cloud Function
                         })
                         .addOnFailureListener(e -> {
                             Log.e(TAG, "Failed to set initial status: ", e);

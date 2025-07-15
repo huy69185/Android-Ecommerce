@@ -17,7 +17,6 @@ import com.example.newEcom.model.MessageModel;
 import com.example.newEcom.utils.FirebaseUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.DocumentSnapshot;
 
 public class AdminChatActivity extends AppCompatActivity {
     private RecyclerView chatRecyclerView;
@@ -44,9 +43,11 @@ public class AdminChatActivity extends AppCompatActivity {
         userId = getIntent().getStringExtra("userId");
         userName = getIntent().getStringExtra("userName");
         if (userId == null) {
+            Log.e(TAG, "No userId provided in intent. Finishing activity.");
             finish();
             return;
         }
+        Log.d(TAG, "Initializing chat with userId: " + userId + ", userName: " + userName);
 
         userNameTextView = findViewById(R.id.userNameTextView);
         userNameTextView.setText("Chatting with " + userName);
@@ -64,6 +65,8 @@ public class AdminChatActivity extends AppCompatActivity {
             if (!message.isEmpty()) {
                 sendMessage(message);
                 messageEditText.setText("");
+            } else {
+                Log.w(TAG, "Empty message not sent");
             }
         });
 
@@ -79,26 +82,24 @@ public class AdminChatActivity extends AppCompatActivity {
         chatRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         chatRecyclerView.setAdapter(chatAdapter);
         chatAdapter.startListening();
+        Log.d(TAG, "Chat RecyclerView set up for userId: " + userId);
     }
 
     private void sendMessage(String message) {
         String adminId = FirebaseUtil.ADMIN_USER_ID;
         if (adminId != null) {
-            String messageId = FirebaseUtil.getChatMessages(userId).document().getId(); // ID duy nhất
+            String messageId = FirebaseUtil.getChatMessages(userId).document().getId();
             MessageModel messageModel = new MessageModel(adminId, message, Timestamp.now(), true);
             Log.d(TAG, "Sending message: " + message + " to userId: " + userId + " with messageId: " + messageId);
-            FirebaseUtil.getChatMessages(userId).document(messageId + "Admin").set(messageModel)
+            FirebaseUtil.getChatMessages(userId).document(messageId).set(messageModel)
                     .addOnSuccessListener(documentReference -> {
                         Log.d(TAG, "Message saved successfully for messageId: " + messageId);
                         FirebaseUtil.getChatRooms().document(userId).update(
-                                "lastMessage", message,
-                                "lastMessageTimestamp", Timestamp.now()
-                        );
+                                        "lastMessage", message,
+                                        "lastMessageTimestamp", Timestamp.now()
+                                ).addOnSuccessListener(aVoid -> Log.d(TAG, "Chat room updated for userId: " + userId))
+                                .addOnFailureListener(e -> Log.e(TAG, "Failed to update chat room: ", e));
                         Toast.makeText(this, "Message sent", Toast.LENGTH_SHORT).show();
-
-                        // Gửi thông báo cho người dùng
-                        Log.d(TAG, "Calling sendChatNotification for receiverId: " + userId);
-                        FirebaseUtil.sendChatNotification(userId, userId, message);
                     })
                     .addOnFailureListener(e -> Log.e(TAG, "Failed to send message: ", e));
         } else {
@@ -112,15 +113,8 @@ public class AdminChatActivity extends AppCompatActivity {
                 Log.e(TAG, "Listen failed.", error);
                 return;
             }
-            if (value != null && !value.isEmpty()) {
-                for (DocumentSnapshot doc : value.getDocuments()) {
-                    MessageModel message = doc.toObject(MessageModel.class);
-                    if (message != null && !message.isAdmin() && !message.getSenderId().equals(FirebaseUtil.ADMIN_USER_ID)) {
-                        // Gửi thông báo đến admin
-                        FirebaseUtil.sendChatNotification(FirebaseUtil.ADMIN_USER_ID, userId, message.getMessage());
-                    }
-                }
-            }
+            Log.d(TAG, "Message listener updated for userId: " + userId);
+            // Cloud Functions sẽ xử lý thông báo
         });
     }
 
@@ -129,6 +123,7 @@ public class AdminChatActivity extends AppCompatActivity {
         super.onStart();
         if (chatAdapter != null) {
             chatAdapter.startListening();
+            Log.d(TAG, "Chat adapter started listening for userId: " + userId);
         }
     }
 
@@ -137,6 +132,7 @@ public class AdminChatActivity extends AppCompatActivity {
         super.onStop();
         if (chatAdapter != null) {
             chatAdapter.stopListening();
+            Log.d(TAG, "Chat adapter stopped listening for userId: " + userId);
         }
     }
 }
